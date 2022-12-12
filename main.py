@@ -33,17 +33,15 @@ def lost():
 
 def locate(data):
     routes = flatten_json(routes_data["nearest_intersection"])
-
     # Get key ending with searched route
-    r = {key:val for key, val in routes.items() if key.endswith(data)}
+    r = {key:val for key, val in routes.items() if key.endswith((data, data+"."))}
     r = list(r.keys())[0]
-    print(r)
     # r is relative position from home.
     return r
 
-def goto(self, goal):
+def goto(current, goal):
     # Localizate self with locate
-    self_route = locate(self) # replace arg with self position
+    self_route = locate(current) # replace arg with self position
     # Localizate goal with locate
     goal_route = locate(goal) # replace arg with goal
     # Compare the two strings for a common intersection (ie: E2)
@@ -55,8 +53,9 @@ def goto(self, goal):
     match = SequenceMatcher(None, self_route, goal_route).find_longest_match(0, len(self_route), 0, len(goal_route))
     # Get corresponding string 
     intersection = self_route[match.a:match.a + match.size]
-    # Remove the .
-    intersection = intersection.replace(".","") 
+    # Remove the . if last char, for the sake of cleanness
+    if (intersection[-1] == "."):
+        intersection = intersection.removeSuffix(".") 
 
     print("Intersection: " + intersection)
     
@@ -174,7 +173,7 @@ def detectLine():
     if cv2.waitKey(1) & 0xFF == ord('q'):
         return False
 
-goto("D2", "HS2")
+goto("D4", "D2")
 
 while(True):
     if(detectLine() == False):

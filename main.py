@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import json
+from difflib import SequenceMatcher
 
 video_capture = cv2.VideoCapture(-1)
 video_capture.set(3, 160)
@@ -36,10 +37,35 @@ def locate(data):
     # Get key ending with searched route
     r = {key:val for key, val in routes.items() if key.endswith(data)}
     r = list(r.keys())[0]
+    print(r)
     # r is relative position from home.
     return r
 
-def goto(room):
+def goto(self, goal):
+    # Localizate self with locate
+    self_route = locate(self) # replace arg with self position
+    # Localizate goal with locate
+    goal_route = locate(goal) # replace arg with goal
+    # Compare the two strings for a common intersection (ie: E2)
+
+    print("Self: " + self_route)
+    print("Goal: " + goal_route)
+
+    # Find a match between the two routes
+    match = SequenceMatcher(None, self_route, goal_route).find_longest_match(0, len(self_route), 0, len(goal_route))
+    # Get corresponding string 
+    intersection = self_route[match.a:match.a + match.size]
+    # Remove the .
+    intersection = intersection.replace(".","") 
+
+    print("Intersection: " + intersection)
+    
+    # Send the robot to the common intersection
+    # TODO
+    # Send the robot to the goal
+    # TODO
+
+    #routes = routes_data["nearest_intersection"]
 
     return True
 
@@ -91,7 +117,7 @@ def detectQR():
     # Display the contents of the QR Code
     if data:
         print("QR Code data:", data)
-        locate(data)
+        locate(data) # Return position relative to HOME
         return True
     else:
         #print("No QR Code was detected")
@@ -148,8 +174,8 @@ def detectLine():
     if cv2.waitKey(1) & 0xFF == ord('q'):
         return False
 
+goto("D2", "HS2")
 
-locate("HS3")
 while(True):
     if(detectLine() == False):
         break

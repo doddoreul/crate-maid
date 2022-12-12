@@ -76,26 +76,24 @@ def get_route(current, goal):
     if (self_route_list[0] == goal_route_list[0]):
         del goal_route_list[0] # Strip first entry if it's already there
     self_route_list.reverse()
-    #del self_route_list[-1] # Remove last entry as it's supposed to be "HOME" and will appear twice
     full_route_list = self_route_list+goal_route_list
     full_route = ".".join(full_route_list)
 
     print("Full route: ", full_route)
 
     # Send the robot to the common intersection, step by step
-    # TODO
     if(self_route != goal_route):
         follow_route(full_route)
     else:
         print("Already there!")
-    # Send the robot to the goal, step by step
-    # TODO
+
 
     return True
 
 # Go to destination via specified route
 # Recursive function till the destination is reached
 def follow_route(route):
+    # TODO
     print("Moving robot to destination via specified route...")
 
 def flatten_json(y):

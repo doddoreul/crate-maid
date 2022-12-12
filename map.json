@@ -1,0 +1,44 @@
+{
+    "routes_from_home": {
+        "//":       "H = home, NSEW-x = intersection, Dx=54 HSx = HS, NSEW = final direction",
+        "jean":     "H-N1-N2-N-D3",
+        "pascal":   "H-N1-E-D2",
+        "xavier":   "H-E1-S-D7",
+        "alex":     "H-W1-N-D5",
+        "out":      "H-W1-W-D6",
+        "albert":   "H-N1-N2-W-D4",
+        "hs1":      "H-E1-E2-N-HS1",
+        "hs2":      "H-E1-E2-E3-S-HS2",
+        "hs3":      "H-E1-E2-E3-E4-E-HS3",
+        "hs4":      "H-E1-E2-E3-E4-N-HS4"
+    },
+    "nearest_intersection":{
+        "HOME": {
+            "W1": {
+                "D6": "",
+                "D5": ""
+            },
+            "N1":{
+                "N2": {
+                    "D4": "",
+                    "D3": ""
+                },
+                "D2": ""
+            },
+            "E1": {
+                "D7": "",
+                "E2":{
+                    "HS1": "",
+                    "E3": {
+                        "HS2": "",
+                        "E4": {
+                            "HS3": "",
+                            "HS4": ""
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+}

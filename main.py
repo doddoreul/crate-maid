@@ -1,11 +1,17 @@
 import numpy as np
 import cv2
- 
+import json
+
 video_capture = cv2.VideoCapture(-1)
 video_capture.set(3, 160)
 video_capture.set(4, 120)
 
 qrDecoder = cv2.QRCodeDetector()
+
+# Open json file, store content then close it
+routes = open('map.json')
+routes_data = json.load(routes)
+routes.close()
 
 def move(direction):
     if (direction == "left"):
@@ -19,14 +25,51 @@ def move(direction):
     elif (direction == "reverse"):
         return True
     else:
-        lost()
         return True
 
 def lost():
     print("I'm lost!")
 
 def locate(data):
+    routes = flatten_json(routes_data["nearest_intersection"])
+
+    # Get key ending with searched route
+    r = {key:val for key, val in routes.items() if key.endswith(data)}
+    r = list(r.keys())[0]
+    # r is relative position from home.
+    return r
+
+def goto(room):
+
     return True
+
+def flatten_json(y):
+    out = {}
+ 
+    def flatten(x, name=''):
+ 
+        # If the Nested key-value
+        # pair is of dict type
+        if type(x) is dict:
+ 
+            for a in x:
+                flatten(x[a], name + a + '.')
+ 
+        # If the Nested key-value
+        # pair is of list type
+        elif type(x) is list:
+ 
+            i = 0
+ 
+            for a in x:
+                flatten(a, name + str(i) + '.')
+                i += 1
+        else:
+            out[name[:-1]] = x
+ 
+    flatten(y)
+    return out
+ 
 
 def detectQR():
     # Read a frame from the camera
@@ -55,7 +98,6 @@ def detectQR():
         return True
 
 def detectLine():
-    detectQR()
     # Capture the frames
     ret, frame = video_capture.read()
 
@@ -98,14 +140,16 @@ def detectLine():
             move("left")
 
     else:
+        lost()
         print("I don't see the line")
-
 
     #Display the resulting frame
     cv2.imshow('frame',frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         return False
 
+
+locate("HS3")
 while(True):
     if(detectLine() == False):
         break

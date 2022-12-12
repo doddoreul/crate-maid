@@ -39,7 +39,9 @@ def locate(data):
     # r is relative position from home.
     return r
 
-def goto(current, goal):
+# Get the route between current position and goal (destination)
+# Should return a route corresponding to the map.json object
+def get_route(current, goal):
     # Localizate self with locate
     self_route = locate(current) # replace arg with self position
     # Localizate goal with locate
@@ -56,18 +58,45 @@ def goto(current, goal):
     # Remove the . if last char, for the sake of cleanness
     if (intersection[-1] == "."):
         intersection = intersection[:-1] 
-
-    print("Intersection: " + intersection)
+    print("Intersection", intersection)
+    intersection_excl = intersection.split(".")
+    print("Intersection_excl", intersection_excl)
     
-    # Send the robot to the common intersection
-    # TODO
-    #goto(current, intersection)
-    # Send the robot to the goal
-    # TODO
+    if (len(intersection_excl) < 1): # If smaller than 1, means we are "home" and don't need to strip
+        del intersection_excl[-1] # Strip last entry to be on "parent" instead of itself
+    
+    intersection = ".".join(intersection_excl)
+    print("Intersection", intersection)
+    self_route = self_route.replace(intersection+".", "") # Strip intersection from route
+    goal_route = goal_route.replace(intersection+".", "") # Strip intersection from route
 
-    #routes = routes_data["nearest_intersection"]
+    # Create the full route between the current location and the destination (goal)
+    self_route_list = self_route.split('.')
+    goal_route_list = goal_route.split('.')  
+    if (self_route_list[0] == goal_route_list[0]):
+        del goal_route_list[0] # Strip first entry if it's already there
+    self_route_list.reverse()
+    #del self_route_list[-1] # Remove last entry as it's supposed to be "HOME" and will appear twice
+    full_route_list = self_route_list+goal_route_list
+    full_route = ".".join(full_route_list)
+
+    print("Full route: ", full_route)
+
+    # Send the robot to the common intersection, step by step
+    # TODO
+    if(self_route != goal_route):
+        follow_route(full_route)
+    else:
+        print("Already there!")
+    # Send the robot to the goal, step by step
+    # TODO
 
     return True
+
+# Go to destination via specified route
+# Recursive function till the destination is reached
+def follow_route(route):
+    print("Moving robot to destination via specified route...")
 
 def flatten_json(y):
     out = {}
@@ -96,7 +125,6 @@ def flatten_json(y):
     flatten(y)
     return out
  
-
 def detectQR():
     # Read a frame from the camera
     _, frame = video_capture.read()
@@ -174,7 +202,7 @@ def detectLine():
     if cv2.waitKey(1) & 0xFF == ord('q'):
         return False
 
-goto("D4", "D2")
+get_route("HS4", "HOME")
 
 while(True):
     if(detectLine() == False):

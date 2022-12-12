@@ -55,12 +55,13 @@ def goto(current, goal):
     intersection = self_route[match.a:match.a + match.size]
     # Remove the . if last char, for the sake of cleanness
     if (intersection[-1] == "."):
-        intersection = intersection.removeSuffix(".") 
+        intersection = intersection[:-1] 
 
     print("Intersection: " + intersection)
     
     # Send the robot to the common intersection
     # TODO
+    #goto(current, intersection)
     # Send the robot to the goal
     # TODO
 

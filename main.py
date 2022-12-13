@@ -31,6 +31,7 @@ def move(direction):
 def lost():
     print("I'm lost!")
 
+# Locate itself in the routes file
 def locate(data):
     routes = flatten_json(routes_data["nearest_intersection"])
     # Get key ending with searched route
@@ -39,8 +40,48 @@ def locate(data):
     # r is relative position from home.
     return r
 
+# Remove trailing dots
+# Return intersection only, not whole route to intersection
+def clean_intersection(intersection):
+    # Remove the . if last char, for the sake of cleanness
+    if (intersection[-1] == "."):
+        intersection = intersection[:-1] 
+    #print("Intersection", intersection)
+    intersection = intersection.split(".")
+    #print("Intersection_excl", intersection)
+    
+    # If intersection equals to 1, means we only have HOME and should return it as it
+    if (len(intersection) == 1): 
+        intersection = intersection[0]
+    else:
+        intersection = intersection[-1]
+        #intersection = ".".join(intersection)
+
+    return intersection
+
+# Merge self route, goal route and intersection into one route
+# self = list
+# goal = list
+# intersection = string
+# return list
+def merge_routes(self, goal, intersection):
+ 
+    for i in self[:]:
+        if i in goal:
+            self.remove(i)
+            goal.remove(i)
+ 
+    intersection = intersection.split(".") # intersection is string, convert it to list, to concatenate later
+    route = self + intersection + goal
+    route = list(filter(None, route)) # Remove empty entries
+
+    return route
+
 # Get the route between current position and goal (destination)
 # Should return a route corresponding to the map.json object
+# current = current position
+# goal = destination
+# return: string of route to take
 def get_route(current, goal):
     # Localizate self with locate
     self_route = locate(current) # replace arg with self position
@@ -51,44 +92,31 @@ def get_route(current, goal):
     print("Self: " + self_route)
     print("Goal: " + goal_route)
 
+    self_route_lst = self_route.split(".")
+    goal_route_lst = goal_route.split(".")
+    self_route_lst.reverse()
+    
+    # Strip last entry of each routes to prevent next instruction to match
+    s = self_route.split(".")
+    s = s[:len(s)-1]
+    g = goal_route.split(".")
+    g = g[:len(g)-1]
+    s = ".".join(s)
+    g = ".".join(g)
+
     # Find a match between the two routes
-    match = SequenceMatcher(None, self_route, goal_route).find_longest_match(0, len(self_route), 0, len(goal_route))
+    match = SequenceMatcher(None, s, g).find_longest_match(0, len(s), 0, len(g))
     # Get corresponding string 
     intersection = self_route[match.a:match.a + match.size]
-    # Remove the . if last char, for the sake of cleanness
-    if (intersection[-1] == "."):
-        intersection = intersection[:-1] 
-    print("Intersection", intersection)
-    intersection_excl = intersection.split(".")
-    print("Intersection_excl", intersection_excl)
-    
-    if (len(intersection_excl) < 1): # If smaller than 1, means we are "home" and don't need to strip
-        del intersection_excl[-1] # Strip last entry to be on "parent" instead of itself
-    
-    intersection = ".".join(intersection_excl)
-    print("Intersection", intersection)
-    self_route = self_route.replace(intersection+".", "") # Strip intersection from route
-    goal_route = goal_route.replace(intersection+".", "") # Strip intersection from route
+    print("Full intersection: ", intersection)
+    intersection = clean_intersection(intersection)
+    print("Short intersection: ", intersection)
 
-    # Create the full route between the current location and the destination (goal)
-    self_route_list = self_route.split('.')
-    goal_route_list = goal_route.split('.')  
-    if (self_route_list[0] == goal_route_list[0]):
-        del goal_route_list[0] # Strip first entry if it's already there
-    self_route_list.reverse()
-    full_route_list = self_route_list+goal_route_list
-    full_route = ".".join(full_route_list)
+    full_route_lst = merge_routes(self_route_lst, goal_route_lst, intersection)
+    full_route = ".".join(full_route_lst)
+    print(full_route)
 
-    print("Full route: ", full_route)
-
-    # Send the robot to the common intersection, step by step
-    if(self_route != goal_route):
-        follow_route(full_route)
-    else:
-        print("Already there!")
-
-
-    return True
+    return full_route_lst
 
 # Go to destination via specified route
 # Recursive function till the destination is reached
@@ -200,7 +228,7 @@ def detectLine():
     if cv2.waitKey(1) & 0xFF == ord('q'):
         return False
 
-get_route("HS4", "HOME")
+get_route("E1", "HS1")
 
 while(True):
     if(detectLine() == False):

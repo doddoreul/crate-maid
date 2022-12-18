@@ -327,10 +327,13 @@ def detectQR2(cmtx, dist):
         if len(axis_points) > 0:
             axis_points = axis_points.reshape((4,2))
 
-            origin = (int(axis_points[0][0]),int(axis_points[0][1]) )
-            x = axis_points[1][0]
-            y = axis_points[1][1]
-            angle = math.atan2(axis_points[0][0]-x,axis_points[0][1]-y)
+            #origin = (int(axis_points[0][0]),int(axis_points[0][1]) )
+            x1 = axis_points[1][0]
+            y1 = axis_points[1][1]
+            x0 = axis_points[0][0]
+            y0 = axis_points[0][1]
+
+            angle = math.atan2(x0-x1,y0-y1)
             angle_degrees = -(math.floor((-180-math.degrees(angle))*100)/100)
             last_qr["orientation"] = angle_degrees
             print("angle: ", angle_degrees)

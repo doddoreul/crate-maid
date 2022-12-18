@@ -167,40 +167,6 @@ def flatten_json(y):
     flatten(y)
     return out
 
-
-
-def detectQR():
-    relative_orientation
-    # Read a frame from the camera
-    _, frame = video_capture.read()
-
-    # Detect the QR Code in the image
-    data, bbox, rectifiedImage = qrDecoder.detectAndDecode(frame)
-
-    # Wait 10 ms
-    key = cv2.waitKey(10)
-    if key == 27:  # 'Esc' key to quit
-        return False
-    
-    # If QRCode's data is recognized, get it's orientation angle
-    #if (data):
-        #print(get_orientation(frame))
-
-    #Display the resulting frame
-    cv2.imshow('frame',frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        return False
-
-    # Display the contents of the QR Code
-    if data:
-        print("QR Code data:", data)
-        locate(data) # Return position relative to HOME
-        #input("Press enter to continue")
-        return True
-    else:
-        #print("No QR Code was detected")
-        return True
-
 def detectLine():
 
     # Capture the frames
@@ -305,8 +271,9 @@ def get_qr_coords(cmtx, dist, points):
     else: return [], [], []
 
 
-def detectQR2(cmtx, dist):
-    # Orientation algo shamelessly stolen here: https://github.com/TemugeB/QR_code_orientation_OpenCV
+def detectQR():
+    #read camera intrinsic parameters.
+    cmtx, dist = read_camera_parameters()
 
     ret, img = video_capture.read()
     if ret == False: return False
@@ -320,14 +287,10 @@ def detectQR2(cmtx, dist):
 
         axis_points, rvec, tvec = get_qr_coords(cmtx, dist, points)
         
-        #BGR color format
-        #colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (0,0,0)]
-
         #check axes points are projected to camera view.
         if len(axis_points) > 0:
             axis_points = axis_points.reshape((4,2))
 
-            #origin = (int(axis_points[0][0]),int(axis_points[0][1]) )
             x1 = axis_points[1][0]
             y1 = axis_points[1][1]
             x0 = axis_points[0][0]
@@ -337,18 +300,6 @@ def detectQR2(cmtx, dist):
             angle_degrees = -(math.floor((-180-math.degrees(angle))*100)/100)
             last_qr["orientation"] = angle_degrees
             print("angle: ", angle_degrees)
-
-            '''
-            for p, c in zip(axis_points[1:], colors[:3]):
-                p = (int(p[0]), int(p[1]))
-                #print(p)
-
-                #Sometimes qr detector will make a mistake and projected point will overflow integer value. We skip these cases. 
-                if origin[0] > 5*img.shape[1] or origin[1] > 5*img.shape[1]:break
-                if p[0] > 5*img.shape[1] or p[1] > 5*img.shape[1]:break
-
-                cv2.line(img, origin, p, c, 5)
-            '''
         
         locate(data) # Return position relative to HOME
 
@@ -362,8 +313,6 @@ def detectQR2(cmtx, dist):
 
 if __name__ == '__main__':
 
-    #read camera intrinsic parameters.
-    cmtx, dist = read_camera_parameters()
 
     #goal = input('Where do we go?: ')
     '''route = get_route("HS4", "HS3")
@@ -374,7 +323,7 @@ if __name__ == '__main__':
         '''if(detectLine() == False):
             break'''
 
-        if(detectQR2(cmtx, dist) == False):
+        if(detectQR2() == False):
             break
 
         k = cv2.waitKey(20)

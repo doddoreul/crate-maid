@@ -50,7 +50,6 @@ def clean_intersection(intersection):
         intersection = intersection[0]
     else:
         intersection = intersection[-1]
-        #intersection = ".".join(intersection)
 
     return intersection
 
@@ -144,11 +143,9 @@ def get_orientation(goal):
     relative_orient = goal_orient - current_orient 
 
     print("Degrees to turn: ", relative_orient)
-
-
     # TODO: calibrate robot to know how long it has to move before reaching the physical intersection
     
-
+# Detect the line via video feed provided by the camera
 def detect_line():
 
     # Capture the frames
@@ -200,6 +197,7 @@ def detect_line():
 
     return True
 
+# Detect QR code via video feed provided by the camera
 def detect_QR():
     #read camera intrinsic parameters.
     cmtx, dist = utils.read_camera_parameters()
@@ -236,7 +234,6 @@ def detect_QR():
                 print("Angle: ", last_qr["orientation"])
                 
                 return True
-        #locate(data) # Return position relative to HOME
         
         if last_qr["data"] == "":
             print('Waiting to catch QR Code data')

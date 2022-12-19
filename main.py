@@ -19,23 +19,9 @@ routes.close()
 relative_orientation = 0
 last_qr = {"data": "", "orientation": ""}
 
-def move(direction):
-    if (direction == "left"):
-        #print("Turn Left!")
-        return True
-    elif (direction == "right"):
-        #print("Turn Right")
-        return True
-    elif (direction == "forward"):
-
-        return True
-    elif (direction == "reverse"):
-        return True
-    else:
-        return True
-
 def lost():
     print("I'm lost!")
+    # TODO: create tippy_tap() function to make the robot "search" for a line
 
 # Locate itself in the routes file
 def locate(data):
@@ -125,11 +111,23 @@ def get_route(current, goal, abs = True):
     return full_route_lst
 
 # Move to next goal (next intersection, of final goal, whatever)
-def move_to(goal):
+# TODO: define here how to physically move the robot, and merge it with detect_line to adjust with the line
+def reach(goal):
     print("Moving to: ", goal)
     if (goal == last_qr["data"]):
         return False
     return True
+
+# Physically adjust the robot left or right, depending on the line
+def adjust_line(direction):
+    if (direction == "left"):
+        #print("Turn Left!")
+        return True
+    elif (direction == "right"):
+        #print("Turn Right")
+        return True
+    else:
+        return False
 
 # Orient robot to next goal
 # goal = next step, not final goal
@@ -186,15 +184,14 @@ def detect_line():
         cv2.drawContours(frame, contours, -1, (0,255,0), 1)
 
         if cx >= 120:
-            move("right")
+            adjust_line("right")
         if cx < 120 and cx > 50:
-            move("forward")
+            adjust_line("forward")
         if cx <= 50:
-            move("left")
+            adjust_line("left")
 
     else:
         lost()
-        print("I don't see the line")
         
     #Display the resulting frame
     cv2.imshow('frame',frame)
@@ -202,11 +199,6 @@ def detect_line():
         return False
 
     return True
-
-# Look for a QR Code to position itself
-def tippy_tap():
-    # TODO
-    return False
 
 def detect_QR():
     #read camera intrinsic parameters.
@@ -263,7 +255,7 @@ if __name__ == '__main__':
             if (last_qr["data"] != goal):
                 route = get_route(last_qr["data"], goal)
                 next_goal = route[1]
-                if (move_to(next_goal)):
+                if (reach(next_goal)):
                     get_orientation(next_goal)
             
             else :

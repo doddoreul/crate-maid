@@ -151,7 +151,7 @@ def get_orientation(goal):
     # TODO: calibrate robot to know how long it has to move before reaching the physical intersection
     
 
-def detectLine():
+def detect_line():
 
     # Capture the frames
     ret, frame = video_capture.read()
@@ -208,7 +208,7 @@ def tippy_tap():
     # TODO
     return False
 
-def detectQR():
+def detect_QR():
     #read camera intrinsic parameters.
     cmtx, dist = utils.read_camera_parameters()
 
@@ -258,7 +258,7 @@ if __name__ == '__main__':
     print("Goal: ", goal)
 
     while(True):
-        if ((detectLine() == True) and (detectQR() == True)):
+        if ((detect_line() == True) and (detect_QR() == True)):
 
             if (last_qr["data"] != goal):
                 route = get_route(last_qr["data"], goal)
@@ -268,9 +268,6 @@ if __name__ == '__main__':
             
             else :
                 print("Destination reached!")
-
-
-            #print(directions)
 
 
         k = cv2.waitKey(20)

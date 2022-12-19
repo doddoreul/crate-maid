@@ -113,6 +113,7 @@ def get_route(current, goal, abs = True):
 # TODO: define here how to physically move the robot, and merge it with detect_line to adjust with the line
 def reach(goal):
     print("Moving to: ", goal)
+    
     if (goal == last_qr["data"]):
         return False
     return True
@@ -180,6 +181,8 @@ def detect_line():
         cv2.line(frame,(0,cy),(1280,cy),(255,0,0),1)
         cv2.drawContours(frame, contours, -1, (0,255,0), 1)
 
+        # Move the robot foward, and check if it's still aligned
+        # TODO: create moving function
         if cx >= 120:
             adjust_line("right")
         if cx < 120 and cx > 50:

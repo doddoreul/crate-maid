@@ -3,6 +3,7 @@ import numpy as np
 import cv2
 import json
 import math
+import time
 from difflib import SequenceMatcher
 
 video_capture = cv2.VideoCapture(-1)
@@ -20,12 +21,13 @@ last_qr = {"data": "", "orientation": ""}
 
 def move(direction):
     if (direction == "left"):
-        print("Turn Left!")
+        #print("Turn Left!")
         return True
     elif (direction == "right"):
-        print("Turn Right")
+        #print("Turn Right")
         return True
     elif (direction == "forward"):
+
         return True
     elif (direction == "reverse"):
         return True
@@ -37,12 +39,11 @@ def lost():
 
 # Locate itself in the routes file
 def locate(data):
-    routes = flatten_json(routes_data["nearest_intersection"])
+    routes = utils.flatten_json(routes_data["nearest_intersection"])
     # Get key ending with searched route
     r = {key:val for key, val in routes.items() if key.endswith((data, data+"."))}
     r = list(r.keys())[0]
     # r is relative position from home.
-    print("Actual position: ", data)
     return r
 
 # Remove trailing dots
@@ -87,15 +88,15 @@ def merge_routes(self, goal, intersection):
 # current = current position
 # goal = destination
 # return: string of route to take
-def get_route(current, goal):
-    # Localizate self with locate
+def get_route(current, goal, abs = True):
+    # Localizate self with locate 
     self_route = locate(current) # replace arg with self position
     # Localizate goal with locate
     goal_route = locate(goal) # replace arg with goal
     # Compare the two strings for a common intersection (ie: E2)
 
-    print("Self: " + self_route)
-    print("Goal: " + goal_route)
+    #print("Self: " + self_route)
+    #print("Goal: " + goal_route)
 
     self_route_lst = self_route.split(".")
     goal_route_lst = goal_route.split(".")
@@ -113,34 +114,46 @@ def get_route(current, goal):
     match = SequenceMatcher(None, s, g).find_longest_match(0, len(s), 0, len(g))
     # Get corresponding string 
     intersection = self_route[match.a:match.a + match.size]
-    print("Full intersection: ", intersection)
+    #print("Full intersection: ", intersection)
     intersection = clean_intersection(intersection)
-    print("Short intersection: ", intersection)
 
     full_route_lst = merge_routes(self_route_lst, goal_route_lst, intersection)
-    full_route = ".".join(full_route_lst)
-    print(full_route)
-
+    
     return full_route_lst
 
-# Return directions assuming the robot is moving foward
-def get_directions(route):
-    print(route)
+# Move to next goal (next intersection, of final goal, whatever)
+def move_to(goal):
+    print("Moving to: ", goal)
+    if (goal == last_qr["data"]):
+        return False
+    return True
 
-    # First key is always current location, let's ignore it
-    dir_lst = routes_data["directions"]
-    del route[0]
-    for i in route:
-        print(dir_lst[i])
+# Orient robot to next goal
+def get_orientation(goal):
 
-    print(dir_lst)
+    # Absolute orientation (relative to absolute north)
+    goal_abs = float(routes_data["directions"][goal])
+    current_abs = float(last_qr["orientation"])
 
-# Go to destination via specified route
-# Recursive function till the destination is reached
-def follow_route(route):
-    # TODO
-    print("Moving robot to destination via specified route...")
+    goal_rel = goal_abs - current_abs
+    print("Rotation: ", goal_rel)
 
+    '''
+    # TODO: calibrate robot to know how long it has to move before reaching the physical intersection
+    
+    crt_orient = float(last_qr["orientation"])
+    nxt_abs_orient = float(routes_data["directions"][goal])
+    print("Next goal: ", goal)
+    print("Next goal orientation: ", nxt_abs_orient)
+    nxt_rel_orient = -nxt_abs_orient - crt_orient 
+    print("Next goal relative orient: ", nxt_rel_orient)
+
+    # Make rotation between -180 and 180
+    nxt_rel_orient = (nxt_rel_orient + 180) % 360 - 180
+
+    print("Rotating: ", nxt_rel_orient)
+
+    '''
 
 def detectLine():
 
@@ -155,8 +168,6 @@ def detectLine():
 
     # Gaussian blur
     blur = cv2.GaussianBlur(gray,(5,5),0)
-
-    # Color thresholding
     ret,thresh = cv2.threshold(blur,60,255,cv2.THRESH_BINARY_INV)
 
     # Find the contours of the frame
@@ -188,20 +199,18 @@ def detectLine():
     else:
         lost()
         print("I don't see the line")
-
+        
     #Display the resulting frame
     cv2.imshow('frame',frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         return False
 
+    return True
+
 # Look for a QR Code to position itself
 def tippy_tap():
     # TODO
     return False
-
-
-
-
 
 def detectQR():
     #read camera intrinsic parameters.
@@ -211,51 +220,64 @@ def detectQR():
     if ret == False: return False
 
     ret_qr, points = qrDecoder.detect(img)
+    cv2.imshow('frame', img)
 
     if ret_qr:
         data, bbox, rectifiedImage = qrDecoder.detectAndDecode(img)
-        # Store data in QR code array
-        last_qr["data"] = data
+        if data:
 
-        axis_points, rvec, tvec = get_qr_coords(cmtx, dist, points)
+            # Store data in QR code array
+            last_qr["data"] = data if (data != "") else last_qr["data"]
+            print("Actual position: ", last_qr["data"])
+
+            axis_points, rvec, tvec = utils.get_qr_coords(cmtx, dist, points)
+            
+            #check axes points are projected to camera view.
+            if len(axis_points) > 0:
+                axis_points = axis_points.reshape((4,2))
+
+                x1 = axis_points[1][0]
+                y1 = axis_points[1][1]
+                x0 = axis_points[0][0]
+                y0 = axis_points[0][1]
+
+                angle = math.atan2(x0-x1,y0-y1)
+                angle_degrees = -(math.floor((-180-math.degrees(angle))*100)/100)
+                last_qr["orientation"] = angle_degrees
+                print("Angle: ", last_qr["orientation"])
+                
+                return True
+        #locate(data) # Return position relative to HOME
         
-        #check axes points are projected to camera view.
-        if len(axis_points) > 0:
-            axis_points = axis_points.reshape((4,2))
+        if last_qr["data"] == "":
+            print('Waiting to catch QR Code data')
 
-            x1 = axis_points[1][0]
-            y1 = axis_points[1][1]
-            x0 = axis_points[0][0]
-            y0 = axis_points[0][1]
-
-            angle = math.atan2(x0-x1,y0-y1)
-            angle_degrees = -(math.floor((-180-math.degrees(angle))*100)/100)
-            last_qr["orientation"] = angle_degrees
-            print("angle: ", angle_degrees)
-        
-        locate(data) # Return position relative to HOME
-
-
-    cv2.imshow('frame', img)
-
-    return True
-
-
+    return False
 
 
 if __name__ == '__main__':
 
-    #goal = input('Where do we go?: ')
-    '''route = get_route("HS4", "HS3")
-    directions = get_directions(route)'''
+    goal = input('Where do we go?:') or "HS3"
+    print("Goal: ", goal)
 
-    # False while debugging
     while(True):
-        '''if(detectLine() == False):
-            break'''
 
-        if(detectQR() == False):
-            break
+        if ((detectLine() == True) and (detectQR() == True)):
+
+            if (last_qr["data"] != goal):
+                route = get_route(last_qr["data"], goal)
+                next_goal = route[1]
+
+                if (move_to(next_goal)):
+                    get_orientation(next_goal)
+                    #input("Moving to next step?")
+            
+            else :
+                print("Destination reached!")
+
+
+            #print(directions)
+
 
         k = cv2.waitKey(20)
         if k == 27: break #27 is ESC key.

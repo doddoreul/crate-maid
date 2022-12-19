@@ -1,17 +1,4 @@
 {
-    "routes_from_home": {
-        "//":       "H = home, NSEW-x = intersection, Dx=54 HSx = HS, NSEW = final direction",
-        "jean":     "H-N1-N2-N-D3",
-        "pascal":   "H-N1-E-D2",
-        "xavier":   "H-E1-S-D7",
-        "alex":     "H-W1-N-D5",
-        "out":      "H-W1-W-D6",
-        "albert":   "H-N1-N2-W-D4",
-        "hs1":      "H-E1-E2-N-HS1",
-        "hs2":      "H-E1-E2-E3-S-HS2",
-        "hs3":      "H-E1-E2-E3-E4-E-HS3",
-        "hs4":      "H-E1-E2-E3-E4-N-HS4"
-    },
     "nearest_intersection":{
         "HOME": {
             "": "",
@@ -43,6 +30,7 @@
                         "": "",
                         "HS2": "",
                         "E5": {
+                            "": "",
                             "E4": {
                                 "": "",
                                 "HS3": "",
@@ -53,6 +41,28 @@
                 }
             }
         }
+    },
+    "four_ways":{
+        "HOME": ["N1", "E1", null, "W1"],
+        "W1": ["D5", "HOME", null, "D6"],
+            "D6": [null, "W1", null, null],
+            "D5": [null, null,"W1", null],
+        "N1": ["N2", "D2", "HOME", null],
+        "N2": [null, "D3", "N1", "D4"],
+            "D4": [null, "N2", null, null],
+            "D3": [null, null, null, "N2"],
+            "D2": [null, null, null, "N1"],
+        "E1": [null, "E2", "D7", "HOME"],
+            "D7": ["E1", null, null, null],
+        "E2": ["HS1", "E3", null, "E1"],
+            "HS1": [null, null, "E2", null],
+        "E3": [null, "E5", "HS2", "E2"],
+            "HS2": ["E3", null, null, null],
+        "E5": ["E4", null, null, "E3"],
+        "E4": ["HS4", "HS3", "E5", null],
+            "HS4": [null, null, "E4", null],
+            "HS3": [null, null, null, "E4"]
+
     },
     "directions":{
         "HOME": "",

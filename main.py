@@ -42,7 +42,10 @@ def locate(data):
     routes = utils.flatten_json(routes_data["nearest_intersection"])
     # Get key ending with searched route
     r = {key:val for key, val in routes.items() if key.endswith((data, data+"."))}
-    r = list(r.keys())[0]
+    try:
+        r = list(r.keys())[0]
+    except:
+        print("*** Missing 'self key' in nearest_intersection?") 
     # r is relative position from home.
     return r
 
@@ -129,31 +132,24 @@ def move_to(goal):
     return True
 
 # Orient robot to next goal
+# goal = next step, not final goal
 def get_orientation(goal):
 
-    # Absolute orientation (relative to absolute north)
-    goal_abs = float(routes_data["directions"][goal])
-    current_abs = float(last_qr["orientation"])
+    current_pos = routes_data["four_ways"][last_qr['data']]
+    #print("Current position: ", current_pos)
 
-    goal_rel = goal_abs - current_abs
-    print("Rotation: ", goal_rel)
+    goal_orient = (current_pos.index(goal))*90
+    current_orient = last_qr["orientation"]
+    #print("Goal orientation: ", goal_orient)
+    #print("Current orientation: ", current_orient)
 
-    '''
+    relative_orient = goal_orient - current_orient 
+
+    print("Degrees to turn: ", relative_orient)
+
+
     # TODO: calibrate robot to know how long it has to move before reaching the physical intersection
     
-    crt_orient = float(last_qr["orientation"])
-    nxt_abs_orient = float(routes_data["directions"][goal])
-    print("Next goal: ", goal)
-    print("Next goal orientation: ", nxt_abs_orient)
-    nxt_rel_orient = -nxt_abs_orient - crt_orient 
-    print("Next goal relative orient: ", nxt_rel_orient)
-
-    # Make rotation between -180 and 180
-    nxt_rel_orient = (nxt_rel_orient + 180) % 360 - 180
-
-    print("Rotating: ", nxt_rel_orient)
-
-    '''
 
 def detectLine():
 
@@ -243,6 +239,7 @@ def detectQR():
 
                 angle = math.atan2(x0-x1,y0-y1)
                 angle_degrees = -(math.floor((-180-math.degrees(angle))*100)/100)
+
                 last_qr["orientation"] = angle_degrees
                 print("Angle: ", last_qr["orientation"])
                 
@@ -257,20 +254,17 @@ def detectQR():
 
 if __name__ == '__main__':
 
-    goal = input('Where do we go?:') or "HS3"
+    goal = input('Where do we go?:') or "HS2"
     print("Goal: ", goal)
 
     while(True):
-
         if ((detectLine() == True) and (detectQR() == True)):
 
             if (last_qr["data"] != goal):
                 route = get_route(last_qr["data"], goal)
                 next_goal = route[1]
-
                 if (move_to(next_goal)):
                     get_orientation(next_goal)
-                    #input("Moving to next step?")
             
             else :
                 print("Destination reached!")

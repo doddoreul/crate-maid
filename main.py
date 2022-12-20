@@ -1,6 +1,7 @@
 import utils.utils as utils
 import numpy as np
 import cv2
+import os
 import json
 import math
 import time
@@ -191,10 +192,12 @@ def detect_line():
     else:
         lost()
         
-    #Display the resulting frame
-    cv2.imshow('frame',frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        return False
+    if "SSH_CONNECTION" not in os.environ:
+        #Display the resulting frame
+        cv2.imshow('frame',frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            return False
+
 
     return True
 
@@ -207,7 +210,10 @@ def detect_QR():
     if ret == False: return False
 
     ret_qr, points = qrDecoder.detect(img)
-    cv2.imshow('frame', img)
+
+    if "SSH_CONNECTION" not in os.environ:
+        cv2.imshow('frame', img)
+
 
     if ret_qr:
         data, bbox, rectifiedImage = qrDecoder.detectAndDecode(img)

@@ -146,16 +146,9 @@ def get_orientation(goal):
     # TODO: calibrate robot to know how long it has to move before reaching the physical intersection
     
 # Detect the line via video feed provided by the camera
-def detect_line():
-
-    # Capture the frames
-    ret, frame = video_capture.read()
-
-    # Crop the image
-    crop_img = frame[60:120, 0:160]
-
+def detect_line(ret, img):
     # Convert to grayscale
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     # Gaussian blur
     blur = cv2.GaussianBlur(gray,(5,5),0)
@@ -175,11 +168,15 @@ def detect_line():
             cx = int(M['m10']/M['m00'])
             cy = int(M['m01']/M['m00'])
 
-        # Draw lines to preview
-        cv2.line(frame,(cx,0),(cx,720),(255,0,0),1)
-        cv2.line(frame,(0,cy),(1280,cy),(255,0,0),1)
-        cv2.drawContours(frame, contours, -1, (0,255,0), 1)
-
+        # If not in SSH, we can draw on the image
+        '''
+        if "SSH_CONNECTION" not in os.environ:
+            # Draw lines to preview
+            cv2.line(img,(cx,0),(cx,720),(255,0,0),1)
+            cv2.line(img,(0,cy),(1280,cy),(255,0,0),1)
+            cv2.drawContours(img, contours, -1, (0,255,0), 1)
+        '''
+        
         # Move the robot foward, and check if it's still aligned
         # TODO: create moving function
         if cx >= 120:
@@ -193,30 +190,21 @@ def detect_line():
         lost()
         
     if "SSH_CONNECTION" not in os.environ:
-        #Display the resulting frame
-        cv2.imshow('frame',frame)
+        cv2.imshow('frame',img)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             return False
-
 
     return True
 
 # Detect QR code via video feed provided by the camera
-def detect_QR():
+def detect_QR(ret, img):
     #read camera intrinsic parameters.
     cmtx, dist = utils.read_camera_parameters()
 
-    ret, img = video_capture.read()
-    if ret == False: return False
-
     ret_qr, points = qrDecoder.detect(img)
 
-    if "SSH_CONNECTION" not in os.environ:
-        cv2.imshow('frame', img)
-
-
     if ret_qr:
-        data, bbox, rectifiedImage = qrDecoder.detectAndDecode(img)
+        data, bbox = qrDecoder.decode(img, points)
         if data:
 
             # Store data in QR code array
@@ -252,8 +240,9 @@ if __name__ == '__main__':
 
     try:
         video_capture = cv2.VideoCapture(-1)
-        video_capture.set(3, 160)
-        video_capture.set(4, 120)
+        # Set width and height to 160*120
+        #video_capture.set(3, 160)
+        #video_capture.set(4, 120)
     except:
         print("Can't find camera")
         exit()
@@ -262,7 +251,11 @@ if __name__ == '__main__':
     print("Goal: ", goal)
 
     while(True):
-        if ((detect_line() == True) and (detect_QR() == True)):
+        ret, img = video_capture.read()
+
+        if ret == False: break # If nothing is found, break the loop
+
+        if ((detect_line(ret, img) == True) and (detect_QR(ret, img) == True)):
 
             if (last_qr["data"] != goal):
                 route = get_route(last_qr["data"], goal)
@@ -272,10 +265,6 @@ if __name__ == '__main__':
             
             else :
                 print("Destination reached!")
-
-
-        k = cv2.waitKey(20)
-        if k == 27: break #27 is ESC key.
 
     video_capture.release()
     cv2.destroyAllWindows()

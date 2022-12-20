@@ -4,9 +4,7 @@ import cv2
 import os
 import json
 import math
-import time
 from difflib import SequenceMatcher
-
 
 
 qrDecoder = cv2.QRCodeDetector()
@@ -188,8 +186,8 @@ def detect_line(ret, img):
 
     else:
         lost()
-        
-    if "SSH_CONNECTION" not in os.environ:
+
+    if ("SSH_CONNECTION" not in os.environ):
         cv2.imshow('frame',img)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             return False
@@ -237,17 +235,12 @@ def detect_QR(ret, img):
 
 
 if __name__ == '__main__':
-
     video_capture = cv2.VideoCapture(-1)
-        # Set width and height to 160*120
-        #video_capture.set(3, 160)
-        #video_capture.set(4, 120)
-        
+
     if not video_capture.isOpened():
         print("Can't find camera")
         exit()
 
-    print(video_capture)
     goal = input('Where do we go?:') or "HS2"
     print("Goal: ", goal)
 

@@ -4,6 +4,7 @@ import cv2
 import os
 import json
 import math
+import time
 from difflib import SequenceMatcher
 
 
@@ -245,6 +246,7 @@ if __name__ == '__main__':
     print("Goal: ", goal)
 
     while(True):
+        time.sleep(0.1)
         ret, img = video_capture.read()
 
         if ret == False: break # If nothing is found, break the loop
@@ -263,3 +265,4 @@ if __name__ == '__main__':
     video_capture.release()
     cv2.destroyAllWindows()
 
+    

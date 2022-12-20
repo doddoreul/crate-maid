@@ -6,9 +6,7 @@ import math
 import time
 from difflib import SequenceMatcher
 
-video_capture = cv2.VideoCapture(-1)
-video_capture.set(3, 160)
-video_capture.set(4, 120)
+
 
 qrDecoder = cv2.QRCodeDetector()
 
@@ -245,6 +243,14 @@ def detect_QR():
 
 
 if __name__ == '__main__':
+
+    try:
+        video_capture = cv2.VideoCapture(-1)
+        video_capture.set(3, 160)
+        video_capture.set(4, 120)
+    except:
+        print("Can't find camera")
+        exit()
 
     goal = input('Where do we go?:') or "HS2"
     print("Goal: ", goal)

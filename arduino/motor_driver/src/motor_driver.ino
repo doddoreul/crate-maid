@@ -16,7 +16,7 @@ void loop() {
   }
 }
 
-void move(char dir) {
+void move(const char dir) {
   if (dir == 'left'){
     // Set the left and right motor speeds
     analogWrite(leftWheel, 180);

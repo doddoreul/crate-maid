@@ -43,6 +43,7 @@
         }
     },
     "four_ways":{
+
         "HOME": ["N1", "E1", null, "W1"],
         "W1": ["D5", "HOME", null, "D6"],
             "D6": [null, "W1", null, null],

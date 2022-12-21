@@ -146,11 +146,9 @@ def get_orientation(goal):
     
 # Detect the line via video feed provided by the camera
 def detect_line(ret, img):
-    # Convert to grayscale
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     # Gaussian blur
-    blur = cv2.GaussianBlur(gray,(5,5),0)
+    blur = cv2.GaussianBlur(img,(5,5),0)
     ret,thresh = cv2.threshold(blur,60,255,cv2.THRESH_BINARY_INV)
 
     # Find the contours of the frame
@@ -168,13 +166,11 @@ def detect_line(ret, img):
             cy = int(M['m01']/M['m00'])
 
         # If not in SSH, we can draw on the image
-        '''
         if "SSH_CONNECTION" not in os.environ:
             # Draw lines to preview
-            cv2.line(img,(cx,0),(cx,720),(255,0,0),1)
-            cv2.line(img,(0,cy),(1280,cy),(255,0,0),1)
-            cv2.drawContours(img, contours, -1, (0,255,0), 1)
-        '''
+            cv2.line(img,(cx,0),(cx,720),(0,0,0),1)
+            cv2.line(img,(0,cy),(1280,cy),(0,0,0),1)
+            cv2.drawContours(img, contours, -1, (0,0,0), 1)
         
         # Move the robot foward, and check if it's still aligned
         # TODO: create moving function
@@ -236,7 +232,12 @@ def detect_QR(ret, img):
 
 
 if __name__ == '__main__':
+    # Create one normal instance
     video_capture = cv2.VideoCapture(-1)
+    # Create one "low quality" copy
+    video_capture_lq = video_capture
+    video_capture_lq.set(3, 160)
+    video_capture_lq.set(4, 120)
 
     if not video_capture.isOpened():
         print("Can't find camera")
@@ -246,12 +247,15 @@ if __name__ == '__main__':
     print("Goal: ", goal)
 
     while(True):
-        time.sleep(0.1)
         ret, img = video_capture.read()
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        ret_sm, img_sm = video_capture_lq.read()
+        img_sm = cv2.cvtColor(img_sm, cv2.COLOR_BGR2GRAY)
 
         if ret == False: break # If nothing is found, break the loop
 
-        if ((detect_line(ret, img) == True) and (detect_QR(ret, img) == True)):
+        if ((detect_line(ret_sm, img_sm) == True) and (detect_QR(ret, img) == True)):
 
             if (last_qr["data"] != goal):
                 route = get_route(last_qr["data"], goal)
@@ -263,6 +267,7 @@ if __name__ == '__main__':
                 print("Destination reached!")
 
     video_capture.release()
+    video_capture_lq.release()
     cv2.destroyAllWindows()
 
     

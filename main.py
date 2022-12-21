@@ -247,6 +247,7 @@ if __name__ == '__main__':
     print("Goal: ", goal)
 
     while(True):
+        time.sleep(0.1)
         ret, img = video_capture.read()
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 

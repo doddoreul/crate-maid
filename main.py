@@ -5,10 +5,31 @@ import os
 import json
 import math
 import time
+import copy
 from difflib import SequenceMatcher
+import RPi.GPIO as GPIO
 
+MOVE = False
 
 qrDecoder = cv2.QRCodeDetector()
+CAP_W = 320
+CAP_H = 240
+
+# Set the GPIO mode to BCM (Broadcom pin numbering)
+GPIO.setmode(GPIO.BCM)
+
+# Set the pin numbers for the two pins that you want to use for PWM
+pin_left = 18
+pin_right = 19
+
+# Set the two pins as outputs
+GPIO.setup(pin_left, GPIO.OUT)
+GPIO.setup(pin_right, GPIO.OUT)
+
+# Create two PWM objects, one for each pin
+robot_left = GPIO.PWM(pin_left, 50)
+robot_right = GPIO.PWM(pin_right, 50)
+robot_speed = 5
 
 # Open json file, store content then close it
 routes = open('map.json')
@@ -19,6 +40,7 @@ last_qr = {"data": "", "orientation": ""}
 
 def lost():
     print("I'm lost!")
+    adjust_line('stop', 1)
     # TODO: create tippy_tap() function to make the robot "search" for a line
 
 # Locate itself in the routes file
@@ -117,16 +139,36 @@ def reach(goal):
     return True
 
 # Physically adjust the robot left or right, depending on the line
-def adjust_line(direction):
-    if (direction == "left"):
-        #print("Turn Left!")
-        return True
-    elif (direction == "right"):
-        #print("Turn Right")
-        return True
-    else:
-        return False
+def adjust_line(dir, t):
 
+    if (dir == "left"):
+        print("Turn Left!")
+        if (MOVE):
+            robot_left.ChangeDutyCycle(0)
+            robot_right.ChangeDutyCycle(robot_speed)
+    elif (dir == "right"):
+        print("Turn Right")
+        if (MOVE):
+            robot_left.ChangeDutyCycle(robot_speed)
+            robot_right.ChangeDutyCycle(0)
+    elif (dir == "foward"):
+        print("Foward")
+        if (MOVE):
+            robot_left.ChangeDutyCycle(robot_speed)
+            robot_right.ChangeDutyCycle(robot_speed)
+    else:
+        print("Stop")
+        if (MOVE):
+            robot_left.ChangeDutyCycle(0)
+            robot_right.ChangeDutyCycle(0)
+        robot_left.stop()
+        robot_right.stop()
+
+    '''
+    time.sleep(t)
+    robot_left.ChangeDutyCycle(0)
+    robot_right.ChangeDutyCycle(0)
+    '''
 # Orient robot to next goal
 # goal = next step, not final goal
 def get_orientation(goal):
@@ -146,6 +188,16 @@ def get_orientation(goal):
     
 # Detect the line via video feed provided by the camera
 def detect_line(ret, img):
+    w = int(CAP_W/4)
+    h = int(CAP_H/4)
+    print(w,h)
+    img = cv2.resize(img,(w,h))
+
+    # Crop the image
+    crop = 0
+    #img = img[0:int(h/2), crop:w-crop]
+    #kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+    #img = cv2.dilate(img, kernel, iterations=1)
 
     # Gaussian blur
     blur = cv2.GaussianBlur(img,(5,5),0)
@@ -157,37 +209,41 @@ def detect_line(ret, img):
     # Find the biggest contour (if detected)
     if len(contours) > 0:
         c = max(contours, key=cv2.contourArea)
+
+        # Find centroids
         M = cv2.moments(c)
-    
+
         if (M['m00'] == 0):
-            print("Meh, m00 = 0")
+            cx, cy = 0, 0
         else:
             cx = int(M['m10']/M['m00'])
             cy = int(M['m01']/M['m00'])
 
-        # If not in SSH, we can draw on the image
-        if "SSH_CONNECTION" not in os.environ:
-            # Draw lines to preview
-            cv2.line(img,(cx,0),(cx,720),(255,255,255),1)
-            cv2.line(img,(0,cy),(1280,cy),(255,255,255),1)
+        # Draw lines to preview
+        if(cx and cy):
+            # Draw X line
+            cv2.line(img,(cx,0),(cx,CAP_H),(255,255,255),1)
+            # Draw Y line
+            cv2.line(img,(0,cy),(CAP_W,cy),(255,255,255),1)
             cv2.drawContours(img, contours, -1, (255,255,255), 1)
         
-        # Move the robot foward, and check if it's still aligned
-        # TODO: create moving function
-        if cx >= 120:
-            adjust_line("right")
-        if cx < 120 and cx > 50:
-            adjust_line("forward")
-        if cx <= 50:
-            adjust_line("left")
+            # Move the robot foward, and check if it's still aligned
+            # TODO: create moving function
+
+            if cx >= 115:
+                adjust_line("right", 0.1)
+            if cx < 115 and cx > 75:
+                adjust_line("foward", 0.1)
+            if cx <= 75:
+                adjust_line("left", 0.1)
 
     else:
         lost()
 
-    if ("SSH_CONNECTION" not in os.environ):
-        cv2.imshow('frame',img)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            return False
+    #if ("SSH_CONNECTION" not in os.environ):
+    cv2.imshow('frame',img)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        return False
 
     return True
 
@@ -201,7 +257,7 @@ def detect_QR(ret, img):
     if ret_qr:
         data, bbox = qrDecoder.decode(img, points)
         if data:
-
+            
             # Store data in QR code array
             last_qr["data"] = data if (data != "") else last_qr["data"]
             print("Actual position: ", last_qr["data"])
@@ -230,36 +286,34 @@ def detect_QR(ret, img):
 
     return False
 
-
 if __name__ == '__main__':
-    # Create one normal instance
+
+    # Select lowest quality available on PSEye
     video_capture = cv2.VideoCapture(-1)
     video_capture.set(cv2.CAP_PROP_FPS, 15)
-
-    # Create one "low quality" copy
-    video_capture_lq = video_capture
-    video_capture_lq.set(cv2.CAP_PROP_FPS, 5)
-    video_capture_lq.set(3, 160)
-    video_capture_lq.set(4, 120)
+    video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, CAP_W)
+    video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, CAP_H)
 
     if not video_capture.isOpened():
         print("Can't find camera")
         exit()
 
     goal = input('Where do we go?:') or "HS2"
+    
     print("Goal: ", goal)
+    
+    # Start the PWM signals with a duty cycle of 0%
+    robot_left.start(0)
+    robot_right.start(0)
 
     while(True):
         #time.sleep(0.1)
         ret, img = video_capture.read()
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        ret_sm, img_sm = video_capture_lq.read()
-        img_sm = cv2.cvtColor(img_sm, cv2.COLOR_BGR2GRAY)
-
         if ret == False: break # If nothing is found, break the loop
 
-        if ((detect_line(ret_sm, img_sm) == True) and (detect_QR(ret, img) == True)):
+        if ((detect_line(ret, img) == True) and (detect_QR(ret, img) == True)):
 
             if (last_qr["data"] != goal):
                 route = get_route(last_qr["data"], goal)
@@ -271,7 +325,8 @@ if __name__ == '__main__':
                 print("Destination reached!")
 
     video_capture.release()
-    video_capture_lq.release()
     cv2.destroyAllWindows()
 
+    # Clean up the GPIO settings
+    GPIO.cleanup()
     

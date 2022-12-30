@@ -9,33 +9,34 @@ import copy
 from difflib import SequenceMatcher
 import RPi.GPIO as GPIO
 
-MOVE = False
+# Constants
+MOVE = False # Should the robot physically move? (debugging)
+RSPEED = 5
+CAP_W = 320 # VideoCapture W
+CAP_H = 240 # VideoCapture H
 
-qrDecoder = cv2.QRCodeDetector()
-CAP_W = 320
-CAP_H = 240
+# Set the pin numbers for the two pins that you want to use for PWM
+P_LEFT = 18
+P_RIGHT = 19
 
 # Set the GPIO mode to BCM (Broadcom pin numbering)
 GPIO.setmode(GPIO.BCM)
 
-# Set the pin numbers for the two pins that you want to use for PWM
-pin_left = 18
-pin_right = 19
-
 # Set the two pins as outputs
-GPIO.setup(pin_left, GPIO.OUT)
-GPIO.setup(pin_right, GPIO.OUT)
+GPIO.setup(P_LEFT, GPIO.OUT)
+GPIO.setup(P_RIGHT, GPIO.OUT)
 
 # Create two PWM objects, one for each pin
-robot_left = GPIO.PWM(pin_left, 50)
-robot_right = GPIO.PWM(pin_right, 50)
-robot_speed = 5
+GPIO_L = GPIO.PWM(P_LEFT, 50)
+GPIO_R = GPIO.PWM(P_RIGHT, 50)
+
+qrDecoder = cv2.QRCodeDetector()
 
 # Open json file, store content then close it
 routes = open('map.json')
 routes_data = json.load(routes)
 routes.close()
-relative_orientation = 0
+rel_orientation = 0
 last_qr = {"data": "", "orientation": ""}
 
 def lost():
@@ -140,34 +141,41 @@ def reach(goal):
 
 # Physically adjust the robot left or right, depending on the line
 def adjust_line(dir, t):
-
-    if (dir == "left"):
-        print("Turn Left!")
-        if (MOVE):
-            robot_left.ChangeDutyCycle(0)
-            robot_right.ChangeDutyCycle(robot_speed)
-    elif (dir == "right"):
-        print("Turn Right")
-        if (MOVE):
-            robot_left.ChangeDutyCycle(robot_speed)
-            robot_right.ChangeDutyCycle(0)
-    elif (dir == "foward"):
-        print("Foward")
-        if (MOVE):
-            robot_left.ChangeDutyCycle(robot_speed)
-            robot_right.ChangeDutyCycle(robot_speed)
-    else:
-        print("Stop")
-        if (MOVE):
-            robot_left.ChangeDutyCycle(0)
-            robot_right.ChangeDutyCycle(0)
-        robot_left.stop()
-        robot_right.stop()
+    if (isinstance(dir, int)):
+        if(dir > 0):
+            print("CW")
+        elif (dir < 0):
+            print("CCW")
+        else: 
+            print("fwd")
+    elif (isinstance(dir, str)):
+        if (dir == "left"):
+            print("Turn Left!")
+            if (MOVE):
+                GPIO_L.ChangeDutyCycle(0)
+                GPIO_R.ChangeDutyCycle(RSPEED)
+        elif (dir == "right"):
+            print("Turn Right")
+            if (MOVE):
+                GPIO_L.ChangeDutyCycle(RSPEED)
+                GPIO_R.ChangeDutyCycle(0)
+        elif (dir == "foward"):
+            print("Foward")
+            if (MOVE):
+                GPIO_L.ChangeDutyCycle(RSPEED)
+                GPIO_R.ChangeDutyCycle(RSPEED)
+        else:
+            print("Stop")
+            if (MOVE):
+                GPIO_L.ChangeDutyCycle(0)
+                GPIO_R.ChangeDutyCycle(0)
+            GPIO_L.stop()
+            GPIO_R.stop()
 
     '''
     time.sleep(t)
-    robot_left.ChangeDutyCycle(0)
-    robot_right.ChangeDutyCycle(0)
+    GPIO_L.ChangeDutyCycle(0)
+    GPIO_R.ChangeDutyCycle(0)
     '''
 # Orient robot to next goal
 # goal = next step, not final goal
@@ -190,14 +198,8 @@ def get_orientation(goal):
 def detect_line(ret, img):
     w = int(CAP_W/4)
     h = int(CAP_H/4)
-    print(w,h)
-    img = cv2.resize(img,(w,h))
 
-    # Crop the image
-    crop = 0
-    #img = img[0:int(h/2), crop:w-crop]
-    #kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-    #img = cv2.dilate(img, kernel, iterations=1)
+    img = cv2.resize(img,(w,h))
 
     # Gaussian blur
     blur = cv2.GaussianBlur(img,(5,5),0)
@@ -222,9 +224,9 @@ def detect_line(ret, img):
         # Draw lines to preview
         if(cx and cy):
             # Draw X line
-            cv2.line(img,(cx,0),(cx,CAP_H),(255,255,255),1)
+            cv2.line(img,(cx,0),(cx,h),(255,255,255),1)
             # Draw Y line
-            cv2.line(img,(0,cy),(CAP_W,cy),(255,255,255),1)
+            cv2.line(img,(0,cy),(w,cy),(255,255,255),1)
             cv2.drawContours(img, contours, -1, (255,255,255), 1)
         
             # Move the robot foward, and check if it's still aligned
@@ -240,8 +242,10 @@ def detect_line(ret, img):
     else:
         lost()
 
-    #if ("SSH_CONNECTION" not in os.environ):
-    cv2.imshow('frame',img)
+    w = w*4
+    h = h*4
+    img_resized = cv2.resize(img,(w,h))
+    cv2.imshow('frame',img_resized)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         return False
 
@@ -303,8 +307,8 @@ if __name__ == '__main__':
     print("Goal: ", goal)
     
     # Start the PWM signals with a duty cycle of 0%
-    robot_left.start(0)
-    robot_right.start(0)
+    GPIO_L.start(0)
+    GPIO_R.start(0)
 
     while(True):
         #time.sleep(0.1)

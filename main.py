@@ -10,8 +10,8 @@ from difflib import SequenceMatcher
 import RPi.GPIO as GPIO
 
 # Constants
-MOVE = False # Should the robot physically move? (debugging)
-RSPEED = 5
+MOVE = True # Should the robot physically move? (debugging)
+RSPEED = 8 # PWM's percentage
 CAP_W = 320 # VideoCapture W
 CAP_H = 240 # VideoCapture H
 
@@ -38,10 +38,11 @@ routes_data = json.load(routes)
 routes.close()
 rel_orientation = 0
 last_qr = {"data": "", "orientation": ""}
+prev_cx = 0
 
 def lost():
     print("I'm lost!")
-    adjust_line('stop', 1)
+    #adjust_line('stop', 1)
     # TODO: create tippy_tap() function to make the robot "search" for a line
 
 # Locate itself in the routes file
@@ -140,14 +141,41 @@ def reach(goal):
     return True
 
 # Physically adjust the robot left or right, depending on the line
-def adjust_line(dir, t):
+def adjust_line(dir):
+
     if (isinstance(dir, int)):
-        if(dir > 0):
-            print("CW")
-        elif (dir < 0):
+        # Crate's width = 36cm
+        # Timing @ 5%: 10.2
+        r = 36
+        speed = ((2*(math.pi)*r)/100)/10.2 # Speed, in m/s
+        # 10.2s = 360°
+        f = (10.2*5)/RSPEED
+        deg = f/360
+        td = deg*dir
+        # Slow speed factor = 10.2/5 : 2.04
+        if (td<0.1): td = 0.1
+
+        if(dir < 0):
+            if (MOVE):
+                GPIO_R.ChangeDutyCycle(RSPEED)
+                GPIO_L.ChangeDutyCycle(0)
             print("CCW")
+        elif (dir > 0):
+            if (MOVE):
+                GPIO_R.ChangeDutyCycle(0)
+                GPIO_L.ChangeDutyCycle(RSPEED)
+            print("CW")
         else: 
+            if (MOVE):
+                GPIO_R.ChangeDutyCycle(RSPEED)
+                GPIO_L.ChangeDutyCycle(RSPEED)
             print("fwd")
+
+        time.sleep(abs(td))
+        GPIO_L.ChangeDutyCycle(0)
+        GPIO_R.ChangeDutyCycle(0)
+
+    '''
     elif (isinstance(dir, str)):
         if (dir == "left"):
             print("Turn Left!")
@@ -171,7 +199,7 @@ def adjust_line(dir, t):
                 GPIO_R.ChangeDutyCycle(0)
             GPIO_L.stop()
             GPIO_R.stop()
-
+    '''
     '''
     time.sleep(t)
     GPIO_L.ChangeDutyCycle(0)
@@ -196,17 +224,17 @@ def get_orientation(goal):
     
 # Detect the line via video feed provided by the camera
 def detect_line(ret, img):
-    w = int(CAP_W/4)
-    h = int(CAP_H/4)
+    w = int(CAP_W/3)
+    h = int(CAP_H/3)
 
     img = cv2.resize(img,(w,h))
 
     # Gaussian blur
     blur = cv2.GaussianBlur(img,(5,5),0)
-    ret,thresh = cv2.threshold(blur,60,255,cv2.THRESH_BINARY_INV)
+    ret,img = cv2.threshold(blur,40,255,cv2.THRESH_BINARY_INV)
 
     # Find the contours of the frame
-    contours,hierarchy = cv2.findContours(thresh.copy(), 1, cv2.CHAIN_APPROX_NONE)
+    contours,hierarchy = cv2.findContours(img.copy(), 1, cv2.CHAIN_APPROX_NONE)
 
     # Find the biggest contour (if detected)
     if len(contours) > 0:
@@ -220,30 +248,33 @@ def detect_line(ret, img):
         else:
             cx = int(M['m10']/M['m00'])
             cy = int(M['m01']/M['m00'])
-
-        # Draw lines to preview
-        if(cx and cy):
-            # Draw X line
-            cv2.line(img,(cx,0),(cx,h),(255,255,255),1)
-            # Draw Y line
-            cv2.line(img,(0,cy),(w,cy),(255,255,255),1)
-            cv2.drawContours(img, contours, -1, (255,255,255), 1)
         
-            # Move the robot foward, and check if it's still aligned
-            # TODO: create moving function
-
-            if cx >= 115:
-                adjust_line("right", 0.1)
-            if cx < 115 and cx > 75:
-                adjust_line("foward", 0.1)
-            if cx <= 75:
-                adjust_line("left", 0.1)
+        # Check if CX is between old CX +/- 5 to be sure it doesn't grab anything too far
+        if ((prev_cx <= cx - 5 and prev_cx >= cx + 5) or prev_cx == 0):
+            if(cx and cy):
+                # Draw X line
+                cv2.line(img,(cx,0),(cx,h),(255,255,255),1)
+                # Draw Y line
+                cv2.line(img,(0,cy),(w,cy),(255,255,255),1)
+                cv2.drawContours(img, contours, -1, (255,255,255), 1)
+            
+                # Move the robot foward, and check if it's still aligned
+                # TODO: create moving function
+                print(cx)
+                mx = (w/2)+5
+                mn = (w/2)-5
+                if cx >= mx:
+                    adjust_line(5)
+                if cx < mx and cx > mn:
+                    adjust_line(0)
+                if cx <= mn:
+                    adjust_line(-5)
 
     else:
         lost()
 
-    w = w*4
-    h = h*4
+    w = w*3
+    h = h*3
     img_resized = cv2.resize(img,(w,h))
     cv2.imshow('frame',img_resized)
     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -297,7 +328,7 @@ if __name__ == '__main__':
     video_capture.set(cv2.CAP_PROP_FPS, 15)
     video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, CAP_W)
     video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, CAP_H)
-
+    
     if not video_capture.isOpened():
         print("Can't find camera")
         exit()

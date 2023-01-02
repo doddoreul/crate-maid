@@ -346,8 +346,8 @@ def detect_ArUco(ret, img):
     # verify *at least* one ArUco marker was detected
     if len(corners) > 0:
         # flatten the ArUco IDs list
-        ids = ids.flatten()
         print(ids)
+        ids = ids.flatten()
         # loop over the detected ArUCo corners
         for (marker_corner, marker_id) in zip(corners, ids):
             # extract the marker corners (which are always returned

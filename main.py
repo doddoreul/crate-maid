@@ -399,7 +399,7 @@ def detect_ArUco(ret, img):
 
 
 # Setup ArUco parameters
-aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_100)
 aruco_params = cv2.aruco.DetectorParameters()
 
 if __name__ == '__main__':

@@ -17,6 +17,7 @@ except ImportError:
 
 # Constants
 MOVE = True # Should the robot physically move? (debugging)
+DEBUG = True
 RSPEED = 8 # PWM's percentage
 CAP_W = 320 # VideoCapture W
 CAP_H = 240 # VideoCapture H
@@ -261,11 +262,13 @@ def detect_line(ret, img):
         # Check if CX is between old CX +/- 5 to be sure it doesn't grab anything too far
         if ((prev_cx <= cx - 5 and prev_cx >= cx + 5) or prev_cx == 0):
             if(cx and cy):
-                # Draw X line
-                cv2.line(img,(cx,0),(cx,h),(255,255,255),1)
-                # Draw Y line
-                cv2.line(img,(0,cy),(w,cy),(255,255,255),1)
-                cv2.drawContours(img, contours, -1, (255,255,255), 1)
+                
+                if (DEBUG):
+                    # Draw X line
+                    cv2.line(img,(cx,0),(cx,h),(255,255,255),1)
+                    # Draw Y line
+                    cv2.line(img,(0,cy),(w,cy),(255,255,255),1)
+                    cv2.drawContours(img, contours, -1, (255,255,255), 1)
             
                 # Move the robot foward, and check if it's still aligned
                 # TODO: create moving function
@@ -282,12 +285,13 @@ def detect_line(ret, img):
     else:
         lost()
 
-    w = w*3
-    h = h*3
-    img_resized = cv2.resize(img,(w,h))
-    cv2.imshow('Line detection',img_resized)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        return False
+    if (DEBUG):
+        w = w*3
+        h = h*3
+        img_resized = cv2.resize(img,(w,h))
+        cv2.imshow('Line detection',img_resized)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            return False
 
     return True
 
@@ -343,7 +347,7 @@ def detect_ArUco(ret, img):
     if len(corners) > 0:
         # flatten the ArUco IDs list
         ids = ids.flatten()
-       
+        print(ids)
         # loop over the detected ArUCo corners
         for (marker_corner, marker_id) in zip(corners, ids):
             # extract the marker corners (which are always returned
@@ -358,40 +362,40 @@ def detect_ArUco(ret, img):
             bottom_left = (int(bottom_left[0]), int(bottom_left[1]))
             top_left = (int(top_left[0]), int(top_left[1]))
             
-            # Draw corners
-            cv2.circle(img, top_right, 4, (255,0,0), 2) 
-            cv2.circle(img, bottom_right, 4, (255,0,0), 2) 
-            cv2.circle(img, bottom_left, 4, (255,0,0), 2) 
-            cv2.circle(img, top_left, 4, (255,0,0), 2) 
+            if (DEBUG):
+                # Draw corners
+                cv2.circle(img, top_right, 4, (255,0,0), 2) 
+                cv2.circle(img, bottom_right, 4, (255,0,0), 2) 
+                cv2.circle(img, bottom_left, 4, (255,0,0), 2) 
+                cv2.circle(img, top_left, 4, (255,0,0), 2) 
+
+                # draw the bounding box of the ArUCo detection
+                cv2.line(img, top_left, top_right, (0, 255, 0), 2)
+                cv2.line(img, top_right, bottom_right, (0, 255, 0), 2)
+                cv2.line(img, bottom_right, bottom_left, (0, 255, 0), 2)
+                cv2.line(img, bottom_left, top_left, (0, 255, 0), 2)
+
+                # compute and draw the center (x, y)-coordinates of the
+                # ArUco marker
+                cX = int((top_left[0] + bottom_right[0]) / 2.0)
+                cY = int((top_left[1] + bottom_right[1]) / 2.0)
+                cv2.circle(img, (cX, cY), 4, (0, 0, 255), -1)
+
+                # draw the ArUco marker ID on the frame
+                cv2.putText(img, str(marker_id),
+                    (top_left[0], top_left[1] - 15),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0, 255, 0), 2)
 
             # Get Orientation
             rad = math.atan2(top_left[0]-top_left[1], top_right[0]-top_right[1])
             angle = (rad*180)/math.pi
-
-            print(angle)
             last_qr["orientation"] = angle
-
-            # draw the bounding box of the ArUCo detection
-            cv2.line(img, top_left, top_right, (0, 255, 0), 2)
-            cv2.line(img, top_right, bottom_right, (0, 255, 0), 2)
-            cv2.line(img, bottom_right, bottom_left, (0, 255, 0), 2)
-            cv2.line(img, bottom_left, top_left, (0, 255, 0), 2)
-
-            # compute and draw the center (x, y)-coordinates of the
-            # ArUco marker
-            cX = int((top_left[0] + bottom_right[0]) / 2.0)
-            cY = int((top_left[1] + bottom_right[1]) / 2.0)
-            cv2.circle(img, (cX, cY), 4, (0, 0, 255), -1)
-
-            # draw the ArUco marker ID on the frame
-            cv2.putText(img, str(marker_id),
-                (top_left[0], top_left[1] - 15),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5, (0, 255, 0), 2)
-
-    # show the output frame
-    cv2.imshow("ArUco detection", img)
-    key = cv2.waitKey(1) & 0xFF
+    
+    if (DEBUG):
+        # show the output frame
+        cv2.imshow("ArUco detection", img)
+        key = cv2.waitKey(1) & 0xFF
 
 
 # Setup ArUco parameters
@@ -420,7 +424,6 @@ if __name__ == '__main__':
         GPIO_R.start(0)
 
     while(True):
-        #time.sleep(0.1)
         ret, img = video_capture.read()
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 

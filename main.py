@@ -7,7 +7,13 @@ import math
 import time
 import copy
 from difflib import SequenceMatcher
-import RPi.GPIO as GPIO
+
+try:
+    import RPi.GPIO as GPIO
+    isPi = True
+except ImportEror:
+    isPi = False
+    import SimulRPi.GPIO as GPIO
 
 # Constants
 MOVE = True # Should the robot physically move? (debugging)
@@ -27,8 +33,9 @@ GPIO.setup(P_LEFT, GPIO.OUT)
 GPIO.setup(P_RIGHT, GPIO.OUT)
 
 # Create two PWM objects, one for each pin
-GPIO_L = GPIO.PWM(P_LEFT, 50)
-GPIO_R = GPIO.PWM(P_RIGHT, 50)
+if (isPi):
+    GPIO_L = GPIO.PWM(P_LEFT, 50)
+    GPIO_R = GPIO.PWM(P_RIGHT, 50)
 
 qrDecoder = cv2.QRCodeDetector()
 
@@ -156,24 +163,26 @@ def adjust_line(dir):
         if (td<0.1): td = 0.1
 
         if(dir < 0):
-            if (MOVE):
+            if (MOVE and isPi):
                 GPIO_R.ChangeDutyCycle(RSPEED)
                 GPIO_L.ChangeDutyCycle(0)
             print("CCW")
         elif (dir > 0):
-            if (MOVE):
+            if (MOVE and isPi):
                 GPIO_R.ChangeDutyCycle(0)
                 GPIO_L.ChangeDutyCycle(RSPEED)
             print("CW")
         else: 
-            if (MOVE):
+            if (MOVE and isPi):
                 GPIO_R.ChangeDutyCycle(RSPEED)
                 GPIO_L.ChangeDutyCycle(RSPEED)
             print("fwd")
 
         time.sleep(abs(td))
-        GPIO_L.ChangeDutyCycle(0)
-        GPIO_R.ChangeDutyCycle(0)
+        
+        if (isPi):
+            GPIO_L.ChangeDutyCycle(0)
+            GPIO_R.ChangeDutyCycle(0)
 
     '''
     elif (isinstance(dir, str)):
@@ -334,7 +343,7 @@ def detect_ArUco(ret, img):
     if len(corners) > 0:
         # flatten the ArUco IDs list
         ids = ids.flatten()
-
+       
         # loop over the detected ArUCo corners
         for (marker_corner, marker_id) in zip(corners, ids):
             # extract the marker corners (which are always returned
@@ -360,6 +369,7 @@ def detect_ArUco(ret, img):
             angle = (rad*180)/math.pi
 
             print(angle)
+            last_qr["orientation"] = angle
 
             # draw the bounding box of the ArUCo detection
             cv2.line(img, top_left, top_right, (0, 255, 0), 2)
@@ -405,8 +415,9 @@ if __name__ == '__main__':
     print("Goal: ", goal)
     
     # Start the PWM signals with a duty cycle of 0%
-    GPIO_L.start(0)
-    GPIO_R.start(0)
+    if (isPi):
+        GPIO_L.start(0)
+        GPIO_R.start(0)
 
     while(True):
         #time.sleep(0.1)
@@ -415,7 +426,7 @@ if __name__ == '__main__':
 
         if ret == False: break # If nothing is found, break the loop
 
-        if ((detect_line(ret, img) == True) and (detect_QR(ret, img) == True)):
+        if ((detect_line(ret, img) == True) and (detect_ArUco(ret, img) == True)):
 
             if (last_qr["data"] != goal):
                 route = get_route(last_qr["data"], goal)

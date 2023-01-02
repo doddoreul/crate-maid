@@ -276,7 +276,7 @@ def detect_line(ret, img):
     w = w*3
     h = h*3
     img_resized = cv2.resize(img,(w,h))
-    cv2.imshow('frame',img_resized)
+    cv2.imshow('Line detection',img_resized)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         return False
 
@@ -320,6 +320,73 @@ def detect_QR(ret, img):
             print('Waiting to catch QR Code data')
 
     return False
+
+# Detect ArUco via video feed provided by the camera
+def detect_ArUco(ret, img):
+    # grab the frame from the threaded video stream and resize it
+    # to have a maximum width of 600 pixels
+    
+    # detect ArUco markers in the input frame
+    (corners, ids, rejected) = cv2.aruco.detectMarkers(img,
+        aruco_dict, parameters=aruco_params)
+
+    # verify *at least* one ArUco marker was detected
+    if len(corners) > 0:
+        # flatten the ArUco IDs list
+        ids = ids.flatten()
+
+        # loop over the detected ArUCo corners
+        for (marker_corner, marker_id) in zip(corners, ids):
+            # extract the marker corners (which are always returned
+            # in top-left, top-right, bottom-right, and bottom-left
+            # order)
+            corners = marker_corner.reshape((4, 2))
+            (top_left, top_right, bottom_right, bottom_left) = corners
+
+            # convert each of the (x, y)-coordinate pairs to integers
+            top_right = (int(top_right[0]), int(top_right[1]))
+            bottom_right = (int(bottom_right[0]), int(bottom_right[1]))
+            bottom_left = (int(bottom_left[0]), int(bottom_left[1]))
+            top_left = (int(top_left[0]), int(top_left[1]))
+            
+            # Draw corners
+            cv2.circle(img, top_right, 4, (255,0,0), 2) 
+            cv2.circle(img, bottom_right, 4, (255,0,0), 2) 
+            cv2.circle(img, bottom_left, 4, (255,0,0), 2) 
+            cv2.circle(img, top_left, 4, (255,0,0), 2) 
+
+            # Get Orientation
+            rad = math.atan2(top_left[0]-top_left[1], top_right[0]-top_right[1])
+            angle = (rad*180)/math.pi
+
+            print(angle)
+
+            # draw the bounding box of the ArUCo detection
+            cv2.line(img, top_left, top_right, (0, 255, 0), 2)
+            cv2.line(img, top_right, bottom_right, (0, 255, 0), 2)
+            cv2.line(img, bottom_right, bottom_left, (0, 255, 0), 2)
+            cv2.line(img, bottom_left, top_left, (0, 255, 0), 2)
+
+            # compute and draw the center (x, y)-coordinates of the
+            # ArUco marker
+            cX = int((top_left[0] + bottom_right[0]) / 2.0)
+            cY = int((top_left[1] + bottom_right[1]) / 2.0)
+            cv2.circle(img, (cX, cY), 4, (0, 0, 255), -1)
+
+            # draw the ArUco marker ID on the frame
+            cv2.putText(img, str(marker_id),
+                (top_left[0], top_left[1] - 15),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5, (0, 255, 0), 2)
+
+    # show the output frame
+    cv2.imshow("ArUco detection", img)
+    key = cv2.waitKey(1) & 0xFF
+
+
+# Setup ArUco parameters
+aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+aruco_params = cv2.aruco.DetectorParameters()
 
 if __name__ == '__main__':
 

@@ -167,17 +167,17 @@ def adjust_line(dir):
             if (MOVE and isPi):
                 GPIO_R.ChangeDutyCycle(RSPEED)
                 GPIO_L.ChangeDutyCycle(0)
-            print("CCW")
+            #print("CCW")
         elif (dir > 0):
             if (MOVE and isPi):
                 GPIO_R.ChangeDutyCycle(0)
                 GPIO_L.ChangeDutyCycle(RSPEED)
-            print("CW")
+            #print("CW")
         else: 
             if (MOVE and isPi):
                 GPIO_R.ChangeDutyCycle(RSPEED)
                 GPIO_L.ChangeDutyCycle(RSPEED)
-            print("fwd")
+            #print("fwd")
 
         time.sleep(abs(td))
 
@@ -272,7 +272,6 @@ def detect_line(ret, img):
             
                 # Move the robot foward, and check if it's still aligned
                 # TODO: create moving function
-                print(cx)
                 mx = (w/2)+5
                 mn = (w/2)-5
                 if cx >= mx:
@@ -340,13 +339,12 @@ def detect_ArUco(ret, img):
     # to have a maximum width of 600 pixels
     
     # detect ArUco markers in the input frame
-    (corners, ids, rejected) = cv2.aruco.detectMarkers(img,
-        aruco_dict, parameters=aruco_params)
+    (corners, ids, rejected) = cv2.aruco.detectMarkers(img, aruco_dict, parameters=aruco_params)
 
     # verify *at least* one ArUco marker was detected
     if len(corners) > 0:
         # flatten the ArUco IDs list
-        print(ids)
+
         ids = ids.flatten()
         # loop over the detected ArUCo corners
         for (marker_corner, marker_id) in zip(corners, ids):
@@ -361,7 +359,15 @@ def detect_ArUco(ret, img):
             bottom_right = (int(bottom_right[0]), int(bottom_right[1]))
             bottom_left = (int(bottom_left[0]), int(bottom_left[1]))
             top_left = (int(top_left[0]), int(top_left[1]))
-            
+
+            # compute and draw the center (x, y)-coordinates of the
+            # ArUco marker
+            cX1 = int((bottom_left[0] + bottom_right[0]) / 2.0)
+            cX2 = int((top_left[0] + top_right[0]) / 2.0)
+
+            cY1 = int((bottom_left[1] + bottom_right[1]) / 2.0)
+            cY2 = int((top_left[1] + top_right[1]) / 2.0)
+
             if (DEBUG):
                 # Draw corners
                 cv2.circle(img, top_right, 4, (255,0,0), 2) 
@@ -375,11 +381,7 @@ def detect_ArUco(ret, img):
                 cv2.line(img, bottom_right, bottom_left, (0, 255, 0), 2)
                 cv2.line(img, bottom_left, top_left, (0, 255, 0), 2)
 
-                # compute and draw the center (x, y)-coordinates of the
-                # ArUco marker
-                cX = int((top_left[0] + bottom_right[0]) / 2.0)
-                cY = int((top_left[1] + bottom_right[1]) / 2.0)
-                cv2.circle(img, (cX, cY), 4, (0, 0, 255), -1)
+                cv2.line(img, (cX1, cY1), (cX2, cY2), (0,0,255),2)
 
                 # draw the ArUco marker ID on the frame
                 cv2.putText(img, str(marker_id),
@@ -388,9 +390,11 @@ def detect_ArUco(ret, img):
                     0.5, (0, 255, 0), 2)
 
             # Get Orientation
-            rad = math.atan2(top_left[0]-top_left[1], top_right[0]-top_right[1])
-            angle = (rad*180)/math.pi
+            rad = math.atan2(cX2-cX1, cY2-cY1)
+
+            angle = abs(((rad*180)/math.pi)-180)
             last_qr["orientation"] = angle
+            print("Angle: ", angle)
     
     if (DEBUG):
         # show the output frame
@@ -414,7 +418,7 @@ if __name__ == '__main__':
         print("Can't find camera")
         exit()
 
-    goal = input('Where do we go?:') or "HS2"
+    goal = input('Where do we go?:') or "29"
     
     print("Goal: ", goal)
     

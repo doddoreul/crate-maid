@@ -11,9 +11,9 @@ from difflib import SequenceMatcher
 try:
     import RPi.GPIO as GPIO
     isPi = True
-except ImportEror:
-    isPi = False
+except ImportError:
     import SimulRPi.GPIO as GPIO
+    isPi = False
 
 # Constants
 MOVE = True # Should the robot physically move? (debugging)
@@ -179,7 +179,7 @@ def adjust_line(dir):
             print("fwd")
 
         time.sleep(abs(td))
-        
+
         if (isPi):
             GPIO_L.ChangeDutyCycle(0)
             GPIO_R.ChangeDutyCycle(0)
@@ -422,11 +422,11 @@ if __name__ == '__main__':
     while(True):
         #time.sleep(0.1)
         ret, img = video_capture.read()
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         if ret == False: break # If nothing is found, break the loop
 
-        if ((detect_line(ret, img) == True) and (detect_ArUco(ret, img) == True)):
+        if ((detect_line(ret, gray) == True) and (detect_ArUco(ret, img) == True)):
 
             if (last_qr["data"] != goal):
                 route = get_route(last_qr["data"], goal)

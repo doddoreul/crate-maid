@@ -57,8 +57,10 @@ prev_cx = 0
 
 def lost():
     print("I'm lost!")
-    GPIO_R.ChangeDutyCycle(0)
-    GPIO_L.ChangeDutyCycle(0)
+
+    if (isPi):
+        GPIO_R.ChangeDutyCycle(0)
+        GPIO_L.ChangeDutyCycle(0)
     #adjust_line('stop', 1)
     # TODO: create tippy_tap() function to make the robot "search" for a line
 
@@ -132,34 +134,44 @@ def get_route(current, goal, abs = True):
     goal_route = locate(goal) # replace arg with goal
     # Compare the two strings for a common intersection (ie: E2)
 
-    print("Self: " + self_route)
-    print("Goal: " + goal_route)
+    #print("Self: " + self_route)
+    #print("Goal: " + goal_route)
 
-    self_route_lst = self_route.split(".")
-    goal_route_lst = goal_route.split(".")
-    self_route_lst.reverse()
+    if (self_route == goal_route):
+        print("Destination reached")
+        return []
+    else: 
+        self_route_lst = self_route.split(".")
+        goal_route_lst = goal_route.split(".")
+        self_route_lst.reverse()
 
-    print("self_route_lst: ", self_route_lst)
-    print("goal_route_lst: ", goal_route_lst)
+        #print("self_route_lst: ", self_route_lst)
+        #print("goal_route_lst: ", goal_route_lst)
+        new_full_route_lst = [*self_route_lst, *goal_route_lst]
+        
+        print('new_full_route_lst: ', new_full_route_lst)
+        """ # Strip last entry of each routes to prevent next instruction to match
+        s = self_route.split(".")
+        s = s[:len(s)-1]
+        g = goal_route.split(".")
+        g = g[:len(g)-1]
+        s = ".".join(s)
+        g = ".".join(g)
 
-    # Strip last entry of each routes to prevent next instruction to match
-    s = self_route.split(".")
-    s = s[:len(s)-1]
-    g = goal_route.split(".")
-    g = g[:len(g)-1]
-    s = ".".join(s)
-    g = ".".join(g)
+        # Find a match between the two routes
+        match = SequenceMatcher(None, s, g).find_longest_match(0, len(s), 0, len(g))
+        # Get corresponding string 
+        intersection = self_route[match.a:match.a + match.size]
+        #print("Full intersection: ", intersection)
 
-    # Find a match between the two routes
-    match = SequenceMatcher(None, s, g).find_longest_match(0, len(s), 0, len(g))
-    # Get corresponding string 
-    intersection = self_route[match.a:match.a + match.size]
-    #print("Full intersection: ", intersection)
-    intersection = clean_intersection(intersection)
-    print("intersection: ", intersection)
-    full_route_lst = merge_routes(self_route_lst, goal_route_lst, intersection)
-    print('full_route_lst: ', full_route_lst)
-    return full_route_lst
+        intersection = clean_intersection(intersection)
+        #print("Intersection: ", intersection)
+        full_route_lst = merge_routes(self_route_lst, goal_route_lst, intersection)
+        #print('full_route_lst: ', full_route_lst)
+         """
+
+        
+        return new_full_route_lst
 
 # Move to next goal (next intersection, of final goal, whatever)
 # TODO: define here how to physically move the robot, and merge it with detect_line to adjust with the line
@@ -207,51 +219,19 @@ def adjust_line(dir):
             GPIO_L.ChangeDutyCycle(0)
             GPIO_R.ChangeDutyCycle(0)
 
-    '''
-    elif (isinstance(dir, str)):
-        if (dir == "left"):
-            print("Turn Left!")
-            if (MOVE):
-                GPIO_L.ChangeDutyCycle(0)
-                GPIO_R.ChangeDutyCycle(RSPEED)
-        elif (dir == "right"):
-            print("Turn Right")
-            if (MOVE):
-                GPIO_L.ChangeDutyCycle(RSPEED)
-                GPIO_R.ChangeDutyCycle(0)
-        elif (dir == "foward"):
-            print("Foward")
-            if (MOVE):
-                GPIO_L.ChangeDutyCycle(RSPEED)
-                GPIO_R.ChangeDutyCycle(RSPEED)
-        else:
-            print("Stop")
-            if (MOVE):
-                GPIO_L.ChangeDutyCycle(0)
-                GPIO_R.ChangeDutyCycle(0)
-            GPIO_L.stop()
-            GPIO_R.stop()
-    '''
-    '''
-    time.sleep(t)
-    GPIO_L.ChangeDutyCycle(0)
-    GPIO_R.ChangeDutyCycle(0)
-    '''
 # Orient robot to next goal
-# goal = next step, not final goalc
+# goal = next step, not final goal
 def get_orientation(goal):
-
     current_pos = routes_data["four_ways"][str(lst_pos['data'])]
-    #print("Current position: ", current_pos)
 
     goal_orient = (current_pos.index(goal))*90
     current_orient = lst_pos["orientation"]
     #print("Goal orientation: ", goal_orient)
     #print("Current orientation: ", current_orient)
 
-    relative_orient = goal_orient - current_orient 
-
+    relative_orient = goal_orient - current_orient
     print("Degrees to turn: ", relative_orient)
+
     # TODO: calibrate robot to know how long it has to move before reaching the physical intersection
     
 # Detect the line via video feed provided by the camera
@@ -475,13 +455,6 @@ aruco_params = cv2.aruco.DetectorParameters()
 
 if __name__ == '__main__':
 
-    """ if (isPi):
-        GPIO_L.start(0)
-        GPIO_R.start(0)
-
-    tick(120)
-    exit() """
-
     # Select lowest quality available on PSEye
     video_capture = cv2.VideoCapture(-1)
     video_capture.set(cv2.CAP_PROP_FPS, 15)
@@ -508,21 +481,20 @@ if __name__ == '__main__':
         if ret == False: break # If nothing is found, break the loop
 
         if ((detect_line(ret, gray) == True) and (detect_ArUco(ret, img) == True)):
-            print("Last pos: ", lst_pos["data"])
-            
+
             if (lst_pos["data"] == ""):
                 print("Looking for a position...")
             else:
-                if (lst_pos["data"] != goal):
-                    route = get_route(lst_pos["data"], goal)
-                    print("Route: ", route)
+                print("Current position: ", lst_pos["data"])
 
+                route = get_route(lst_pos["data"], goal)
+                
+                if (len(route)):  
                     next_goal = route[1]
                     if (reach(next_goal)):
                         get_orientation(next_goal)
                 
-                else :
-                    print("Destination reached!")
+
 
     video_capture.release()
     cv2.destroyAllWindows()

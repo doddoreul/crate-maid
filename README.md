@@ -35,6 +35,10 @@ Thanks to the following people who have contributed to this project:
 * [@LgHackerSpace](https://twitter.com/LgHackerSpace)
 * [@OpenAI](https://twitter.com/openai) (for all generated code I didn't had to write)
 
+## Disclaimer
+
+I'm not a developer nor a programmer, I'm learning by myself, I don't care if my code burns your eyes.
+
 ## Contact
 
 You can try to reach us, but I'm not sure we will answer since we won't provide any kind of support for this project.

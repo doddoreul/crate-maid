@@ -1,4 +1,18 @@
+# Before anything, we parse all given args and setup everything
+import argparse
+# Parse args from cli
+argParser = argparse.ArgumentParser()
+argParser.add_argument("-m", "--move", help="Move the robot", action='store_const', const=True)
+argParser.add_argument("-d", "--debug", help="Display debug windows", action='store_const', const=True)
+argParser.add_argument("-v", "--verbose", help="Verbose mode", action='store_const', const=True)
+args = argParser.parse_args()
+
+# Constants
+MOVE = True if args.move == None else False # Should the robot physically move? (debugging)
+DEBUG = False if args.debug == None else True
+VERBOSE = False if args.verbose == None else True
 import utils.utils as utils
+from utils.utils import printv
 import numpy as np
 import cv2
 import os
@@ -6,7 +20,6 @@ import json
 import math
 import time
 import copy
-import argparse
 from difflib import SequenceMatcher
 
 try:
@@ -16,14 +29,8 @@ except ImportError:
     import SimulRPi.GPIO as GPIO
     hasGPIO = False
 
-argParser = argparse.ArgumentParser()
-argParser.add_argument("-m", "--move", help="Move the robot", action='store_const', const=True)
-argParser.add_argument("-d", "--debug", help="Display debug windows", action='store_const', const=True)
-args = argParser.parse_args()
 
-# Constants
-MOVE = True if args.move == None else False # Should the robot physically move? (debugging)
-DEBUG = False if args.debug == None else True
+
 RSPEED = 5 # PWM's percentage
 CAP_W = 320 # VideoCapture W
 CAP_H = 240 # VideoCapture H
@@ -49,15 +56,16 @@ aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_100)
 aruco_params = cv2.aruco.DetectorParameters()
 
 # Open json file, store content then close it
-routes = open('map.json')
-routes_data = json.load(routes)
-routes.close()
-rel_orientation = 0
+routes_f = open('map.json')
+map_data = json.load(routes_f)
+routes_f.close()
+routes = utils.flatten_json(map_data["nearest_intersection"])
+
 last_pos = {"data": "", "orientation": ""}
 
 # Look for the line, or stop (don't know yet)
 def lost():
-    print("I'm lost!")
+    printv("I'm lost!")
 
     if (hasGPIO):
         GPIO_R.ChangeDutyCycle(0)
@@ -65,14 +73,12 @@ def lost():
 
 # Locate itself in the routes file
 def locate(data):
-    data = str(data)
+    data = str(data) # Ensure it's a str, not an int
 
-    routes = utils.flatten_json(routes_data["nearest_intersection"])
-    
     # Keys with specific suffix in Dictionary
     r = ""
     for i in routes.keys():
-        
+
         if(i.endswith(".")):
             i = i[:-1]
     
@@ -94,29 +100,29 @@ def get_route(current, goal, abs = True):
     goal_route = locate(goal) # replace arg with goal
     # Compare the two strings for a common intersection (ie: E2)
 
-    #print("Self: " + self_route)
-    #print("Goal: " + goal_route)
+    #printv("Self: " + self_route)
+    #printv("Goal: " + goal_route)
 
     if (self_route == goal_route):
-        print("Destination reached")
+        printv("Destination reached")
         return []
     else: 
         self_route_lst = self_route.split(".")
         goal_route_lst = goal_route.split(".")
         self_route_lst.reverse()
 
-        #print("self_route_lst: ", self_route_lst)
-        #print("goal_route_lst: ", goal_route_lst)
+        #printv("self_route_lst: ", self_route_lst)
+        #printv("goal_route_lst: ", goal_route_lst)
         new_full_route_lst = [*self_route_lst, *goal_route_lst]
         
-        print('new_full_route_lst: ', new_full_route_lst)
+        printv('new_full_route_lst: ', new_full_route_lst)
         
         return new_full_route_lst
 
 # Move to next goal (next intersection, of final goal, whatever)
 # TODO: define here how to physically move the robot, and merge it with detect_line to adjust with the line
 def reach(goal):
-    print("Moving to: ", goal)
+    printv("Moving to: ", goal)
     
     if (goal == last_pos["data"]):
         return False
@@ -131,17 +137,17 @@ def adjust_line(dir):
             if (MOVE and hasGPIO):
                 GPIO_R.ChangeDutyCycle(RSPEED)
                 GPIO_L.ChangeDutyCycle(0)
-            #print("CCW")
+            #printv("CCW")
         elif (dir > 0):
             if (MOVE and hasGPIO):
                 GPIO_R.ChangeDutyCycle(0)
                 GPIO_L.ChangeDutyCycle(RSPEED)
-            #print("CW")
+            #printv("CW")
         else: 
             if (MOVE and hasGPIO):
                 GPIO_R.ChangeDutyCycle(RSPEED)
                 GPIO_L.ChangeDutyCycle(RSPEED)
-            #print("fwd")
+            #printv("fwd")
 
         time.sleep(0.08)
 
@@ -152,15 +158,15 @@ def adjust_line(dir):
 # Orient robot to next goal
 # goal = next step, not final goal
 def get_orientation(goal):
-    current_pos = routes_data["four_ways"][str(last_pos['data'])]
+    current_pos = map_data["four_ways"][str(last_pos['data'])]
 
     goal_orient = (current_pos.index(goal))*90
     current_orient = last_pos["orientation"]
-    #print("Goal orientation: ", goal_orient)
-    #print("Current orientation: ", current_orient)
+    #printv("Goal orientation: ", goal_orient)
+    #printv("Current orientation: ", current_orient)
 
     relative_orient = goal_orient - current_orient
-    print("Degrees to turn: ", relative_orient)
+    printv("Degrees to turn: ", relative_orient)
 
     # TODO: calibrate robot to know how long it has to move before reaching the physical intersection
     
@@ -313,7 +319,7 @@ def detect_ArUco(ret, img):
 
             angle = abs(((rad*180)/math.pi)-180)
             last_pos["orientation"] = angle
-            #print("Angle: ", angle)
+            #printv("Angle: ", angle)
 
     if (DEBUG):
         # show the output frame
@@ -334,12 +340,12 @@ if __name__ == '__main__':
     video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, CAP_H)
     
     if not video_capture.isOpened():
-        print("Can't find camera")
+        printv("Can't find camera")
         exit()
 
     goal = input('Where do we go?:') or "29"
     
-    print("Goal: ", goal)
+    printv("Goal: ", goal)
     
     # Start the PWM signals with a duty cycle of 0%
     if (hasGPIO):
@@ -355,9 +361,9 @@ if __name__ == '__main__':
         if ((detect_line(ret, gray) == True) and (detect_ArUco(ret, img) == True)):
 
             if (last_pos["data"] == ""):
-                print("Looking for a position...")
+                printv("Looking for a position...")
             else:
-                print("Current position: ", last_pos["data"])
+                printv("Current position: ", last_pos["data"])
 
                 route = get_route(last_pos["data"], goal)
                 

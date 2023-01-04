@@ -1,6 +1,10 @@
+from __main__ import *
 import numpy as np
 import cv2
 
+if (VERBOSE):
+    print("*** Verbose mode enabled")
+    
 def flatten_json(y):
     out = {}
  
@@ -71,3 +75,9 @@ def get_qr_coords(cmtx, dist, points):
     #return empty arrays if rotation and translation values not found
     else: return [], [], []
 
+def printv(s, v=None):
+    if VERBOSE:
+        if v != None:
+            print(s + ": " + v)
+        else:
+            print(s)

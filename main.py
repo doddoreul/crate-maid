@@ -11,10 +11,10 @@ from difflib import SequenceMatcher
 
 try:
     import RPi.GPIO as GPIO
-    isPi = True
+    hasGPIO = True
 except ImportError:
     import SimulRPi.GPIO as GPIO
-    isPi = False
+    hasGPIO = False
 
 argParser = argparse.ArgumentParser()
 argParser.add_argument("-m", "--move", help="Move the robot", action='store_const', const=True)
@@ -41,7 +41,7 @@ GPIO.setup(P_LEFT, GPIO.OUT)
 GPIO.setup(P_RIGHT, GPIO.OUT)
 
 # Create two PWM objects, one for each pin
-if (isPi):
+if (hasGPIO):
     GPIO_L = GPIO.PWM(P_LEFT, 50)
     GPIO_R = GPIO.PWM(P_RIGHT, 50)
 
@@ -58,7 +58,7 @@ prev_cx = 0
 def lost():
     print("I'm lost!")
 
-    if (isPi):
+    if (hasGPIO):
         GPIO_R.ChangeDutyCycle(0)
         GPIO_L.ChangeDutyCycle(0)
     #adjust_line('stop', 1)
@@ -198,24 +198,24 @@ def adjust_line(dir):
         if (td<0.1): td = 0.1 """
 
         if(dir < 0):
-            if (MOVE and isPi):
+            if (MOVE and hasGPIO):
                 GPIO_R.ChangeDutyCycle(RSPEED)
                 GPIO_L.ChangeDutyCycle(0)
             #print("CCW")
         elif (dir > 0):
-            if (MOVE and isPi):
+            if (MOVE and hasGPIO):
                 GPIO_R.ChangeDutyCycle(0)
                 GPIO_L.ChangeDutyCycle(RSPEED)
             #print("CW")
         else: 
-            if (MOVE and isPi):
+            if (MOVE and hasGPIO):
                 GPIO_R.ChangeDutyCycle(RSPEED)
                 GPIO_L.ChangeDutyCycle(RSPEED)
             #print("fwd")
 
         time.sleep(0.08)
 
-        if (isPi):
+        if (hasGPIO):
             GPIO_L.ChangeDutyCycle(0)
             GPIO_R.ChangeDutyCycle(0)
 
@@ -470,7 +470,7 @@ if __name__ == '__main__':
     print("Goal: ", goal)
     
     # Start the PWM signals with a duty cycle of 0%
-    if (isPi):
+    if (hasGPIO):
         GPIO_L.start(0)
         GPIO_R.start(0)
 

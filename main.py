@@ -6,6 +6,7 @@ import json
 import math
 import time
 import copy
+import argparse
 from difflib import SequenceMatcher
 
 try:
@@ -15,12 +16,18 @@ except ImportError:
     import SimulRPi.GPIO as GPIO
     isPi = False
 
+argParser = argparse.ArgumentParser()
+argParser.add_argument("-m", "--move", help="Move the robot", action='store_const', const=True)
+argParser.add_argument("-d", "--debug", help="Display debug windows", action='store_const', const=True)
+args = argParser.parse_args()
+
 # Constants
-MOVE = True # Should the robot physically move? (debugging)
-DEBUG = True
-RSPEED = 8 # PWM's percentage
+MOVE = True if args.move == None else False # Should the robot physically move? (debugging)
+DEBUG = False if args.debug == None else True
+RSPEED = 5 # PWM's percentage
 CAP_W = 320 # VideoCapture W
 CAP_H = 240 # VideoCapture H
+
 
 # Set the pin numbers for the two pins that you want to use for PWM
 P_LEFT = 18
@@ -45,23 +52,35 @@ routes = open('map.json')
 routes_data = json.load(routes)
 routes.close()
 rel_orientation = 0
-last_qr = {"data": "", "orientation": ""}
+lst_pos = {"data": "", "orientation": ""}
 prev_cx = 0
 
 def lost():
     print("I'm lost!")
+    GPIO_R.ChangeDutyCycle(0)
+    GPIO_L.ChangeDutyCycle(0)
     #adjust_line('stop', 1)
     # TODO: create tippy_tap() function to make the robot "search" for a line
 
 # Locate itself in the routes file
 def locate(data):
+    data = str(data)
+
     routes = utils.flatten_json(routes_data["nearest_intersection"])
+
     # Get key ending with searched route
-    r = {key:val for key, val in routes.items() if key.endswith((data, data+"."))}
-    try:
-        r = list(r.keys())[0]
-    except:
-        print("*** Missing 'self key' in nearest_intersection?") 
+    #r = {key:val for key, val in routes.items() if key.endswith(data+".")}
+    
+    # Keys with specific suffix in Dictionary
+    r = ""
+    for i in routes.keys():
+        
+        if(i.endswith(".")):
+            i = i[:-1]
+    
+        if (i.endswith("."+data)):
+            r = i
+
     # r is relative position from home.
     return r
 
@@ -113,13 +132,16 @@ def get_route(current, goal, abs = True):
     goal_route = locate(goal) # replace arg with goal
     # Compare the two strings for a common intersection (ie: E2)
 
-    #print("Self: " + self_route)
-    #print("Goal: " + goal_route)
+    print("Self: " + self_route)
+    print("Goal: " + goal_route)
 
     self_route_lst = self_route.split(".")
     goal_route_lst = goal_route.split(".")
     self_route_lst.reverse()
-    
+
+    print("self_route_lst: ", self_route_lst)
+    print("goal_route_lst: ", goal_route_lst)
+
     # Strip last entry of each routes to prevent next instruction to match
     s = self_route.split(".")
     s = s[:len(s)-1]
@@ -134,9 +156,9 @@ def get_route(current, goal, abs = True):
     intersection = self_route[match.a:match.a + match.size]
     #print("Full intersection: ", intersection)
     intersection = clean_intersection(intersection)
-
+    print("intersection: ", intersection)
     full_route_lst = merge_routes(self_route_lst, goal_route_lst, intersection)
-    
+    print('full_route_lst: ', full_route_lst)
     return full_route_lst
 
 # Move to next goal (next intersection, of final goal, whatever)
@@ -144,7 +166,7 @@ def get_route(current, goal, abs = True):
 def reach(goal):
     print("Moving to: ", goal)
     
-    if (goal == last_qr["data"]):
+    if (goal == lst_pos["data"]):
         return False
     return True
 
@@ -152,7 +174,7 @@ def reach(goal):
 def adjust_line(dir):
 
     if (isinstance(dir, int)):
-        # Crate's width = 36cm
+        """         # Crate's width = 36cm
         # Timing @ 5%: 10.2
         r = 36
         speed = ((2*(math.pi)*r)/100)/10.2 # Speed, in m/s
@@ -161,7 +183,7 @@ def adjust_line(dir):
         deg = f/360
         td = deg*dir
         # Slow speed factor = 10.2/5 : 2.04
-        if (td<0.1): td = 0.1
+        if (td<0.1): td = 0.1 """
 
         if(dir < 0):
             if (MOVE and isPi):
@@ -179,7 +201,7 @@ def adjust_line(dir):
                 GPIO_L.ChangeDutyCycle(RSPEED)
             #print("fwd")
 
-        time.sleep(abs(td))
+        time.sleep(0.08)
 
         if (isPi):
             GPIO_L.ChangeDutyCycle(0)
@@ -216,14 +238,14 @@ def adjust_line(dir):
     GPIO_R.ChangeDutyCycle(0)
     '''
 # Orient robot to next goal
-# goal = next step, not final goal
+# goal = next step, not final goalc
 def get_orientation(goal):
 
-    current_pos = routes_data["four_ways"][last_qr['data']]
+    current_pos = routes_data["four_ways"][str(lst_pos['data'])]
     #print("Current position: ", current_pos)
 
     goal_orient = (current_pos.index(goal))*90
-    current_orient = last_qr["orientation"]
+    current_orient = lst_pos["orientation"]
     #print("Goal orientation: ", goal_orient)
     #print("Current orientation: ", current_orient)
 
@@ -260,7 +282,7 @@ def detect_line(ret, img):
             cy = int(M['m01']/M['m00'])
         
         # Check if CX is between old CX +/- 5 to be sure it doesn't grab anything too far
-        if ((prev_cx <= cx - 5 and prev_cx >= cx + 5) or prev_cx == 0):
+        #if ((prev_cx <= cx - 5 and prev_cx >= cx + 5) or prev_cx == 0):
             if(cx and cy):
                 
                 if (DEBUG):
@@ -272,8 +294,8 @@ def detect_line(ret, img):
             
                 # Move the robot foward, and check if it's still aligned
                 # TODO: create moving function
-                mx = (w/2)+5
-                mn = (w/2)-5
+                mx = (w/2)+10
+                mn = (w/2)-10
                 if cx >= mx:
                     adjust_line(5)
                 if cx < mx and cx > mn:
@@ -306,8 +328,8 @@ def detect_QR(ret, img):
         if data:
             
             # Store data in QR code array
-            last_qr["data"] = data if (data != "") else last_qr["data"]
-            print("Actual position: ", last_qr["data"])
+            lst_pos["data"] = data if (data != "") else lst_pos["data"]
+            print("Actual position: ", lst_pos["data"])
 
             axis_points, rvec, tvec = utils.get_qr_coords(cmtx, dist, points)
             
@@ -323,31 +345,51 @@ def detect_QR(ret, img):
                 angle = math.atan2(x0-x1,y0-y1)
                 angle_degrees = -(math.floor((-180-math.degrees(angle))*100)/100)
 
-                last_qr["orientation"] = angle_degrees
-                print("Angle: ", last_qr["orientation"])
+                lst_pos["orientation"] = angle_degrees
+                print("Angle: ", lst_pos["orientation"])
                 
                 return True
         
-        if last_qr["data"] == "":
+        if lst_pos["data"] == "":
             print('Waiting to catch QR Code data')
 
     return False
 
 # Detect ArUco via video feed provided by the camera
 def detect_ArUco(ret, img):
+    c_x1 = (img.shape[0]//3)
+    c_x2 = (img.shape[0]//3)*2
+    c_y1 = (img.shape[1]//3)
+    c_y2 = (img.shape[1]//3)*2
+
+    cropped = img[c_x1: c_x2, c_y1: c_y2]
     # grab the frame from the threaded video stream and resize it
     # to have a maximum width of 600 pixels
     
     # detect ArUco markers in the input frame
-    (corners, ids, rejected) = cv2.aruco.detectMarkers(img, aruco_dict, parameters=aruco_params)
+    (corners, ids, rejected) = cv2.aruco.detectMarkers(cropped, aruco_dict, parameters=aruco_params)
+    
+    if (DEBUG):
+        # convert each of the (x, y)-coordinate pairs to integers
+
+        # Draw cropped corners
+        cv2.line(img, (c_y1, c_x1), (c_y1, c_x2), (255,0,0), 1) 
+        cv2.line(img, (c_y1, c_x2), (c_y2, c_x2), (255,0,0), 1) 
+        cv2.line(img, (c_y1, c_x1), (c_y2, c_x1), (255,0,0), 1) 
+        cv2.line(img, (c_y2, c_x1), (c_y2, c_x2), (255,0,0), 1) 
 
     # verify *at least* one ArUco marker was detected
     if len(corners) > 0:
         # flatten the ArUco IDs list
 
         ids = ids.flatten()
+        id = ids[:1] # Filter one code
+        
+        if(id[0] != ""):
+            lst_pos["data"] = id[0]
+
         # loop over the detected ArUCo corners
-        for (marker_corner, marker_id) in zip(corners, ids):
+        for (marker_corner, marker_id) in zip(corners, id):
             # extract the marker corners (which are always returned
             # in top-left, top-right, bottom-right, and bottom-left
             # order)
@@ -369,22 +411,29 @@ def detect_ArUco(ret, img):
             cY2 = int((top_left[1] + top_right[1]) / 2.0)
 
             if (DEBUG):
+                # convert each of the (x, y)-coordinate pairs to integers
+
+                # Draw cropped corners
+                cv2.line(img, (c_y1, c_x1), (c_y1, c_x2), (255,0,0), 1) 
+                cv2.line(img, (c_y1, c_x2), (c_y2, c_x2), (255,0,0), 1) 
+                cv2.line(img, (c_y1, c_x1), (c_y2, c_x1), (255,0,0), 1) 
+                cv2.line(img, (c_y2, c_x1), (c_y2, c_x2), (255,0,0), 1) 
+
                 # Draw corners
-                cv2.circle(img, top_right, 4, (255,0,0), 2) 
-                cv2.circle(img, bottom_right, 4, (255,0,0), 2) 
-                cv2.circle(img, bottom_left, 4, (255,0,0), 2) 
-                cv2.circle(img, top_left, 4, (255,0,0), 2) 
+                cv2.circle(cropped, top_right, 4, (255,0,0), 2) 
+                cv2.circle(cropped, bottom_right, 4, (255,0,0), 2) 
+                cv2.circle(cropped, bottom_left, 4, (255,0,0), 2) 
+                cv2.circle(cropped, top_left, 4, (255,0,0), 2) 
 
                 # draw the bounding box of the ArUCo detection
-                cv2.line(img, top_left, top_right, (0, 255, 0), 2)
-                cv2.line(img, top_right, bottom_right, (0, 255, 0), 2)
-                cv2.line(img, bottom_right, bottom_left, (0, 255, 0), 2)
-                cv2.line(img, bottom_left, top_left, (0, 255, 0), 2)
+                cv2.line(cropped, top_left, top_right, (0, 255, 0), 2)
+                cv2.line(cropped, top_right, bottom_right, (0, 255, 0), 2)
+                cv2.line(cropped, bottom_right, bottom_left, (0, 255, 0), 2)
+                cv2.line(cropped, bottom_left, top_left, (0, 255, 0), 2)
 
-                cv2.line(img, (cX1, cY1), (cX2, cY2), (0,0,255),2)
 
                 # draw the ArUco marker ID on the frame
-                cv2.putText(img, str(marker_id),
+                cv2.putText(cropped, str(marker_id),
                     (top_left[0], top_left[1] - 15),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0, 255, 0), 2)
@@ -393,20 +442,45 @@ def detect_ArUco(ret, img):
             rad = math.atan2(cX2-cX1, cY2-cY1)
 
             angle = abs(((rad*180)/math.pi)-180)
-            last_qr["orientation"] = angle
-            print("Angle: ", angle)
-    
+            lst_pos["orientation"] = angle
+            #print("Angle: ", angle)
+
     if (DEBUG):
         # show the output frame
         cv2.imshow("ArUco detection", img)
-        key = cv2.waitKey(1) & 0xFF
+        #cv2.imshow("ArUco cropped", cropped)
+
+    if len(corners) > 0:
+        return True
+    else : 
+        return False
+    
+
+
+def tick(qty):
+    # 120 = 360°
+    
+    i=0
+    while(i<qty):
+        GPIO_R.ChangeDutyCycle(RSPEED)
+        GPIO_L.ChangeDutyCycle(0)
+        time.sleep(0.1)
+        i = i+1
 
 
 # Setup ArUco parameters
 aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_100)
 aruco_params = cv2.aruco.DetectorParameters()
 
+
 if __name__ == '__main__':
+
+    """ if (isPi):
+        GPIO_L.start(0)
+        GPIO_R.start(0)
+
+    tick(120)
+    exit() """
 
     # Select lowest quality available on PSEye
     video_capture = cv2.VideoCapture(-1)
@@ -434,15 +508,21 @@ if __name__ == '__main__':
         if ret == False: break # If nothing is found, break the loop
 
         if ((detect_line(ret, gray) == True) and (detect_ArUco(ret, img) == True)):
-
-            if (last_qr["data"] != goal):
-                route = get_route(last_qr["data"], goal)
-                next_goal = route[1]
-                if (reach(next_goal)):
-                    get_orientation(next_goal)
+            print("Last pos: ", lst_pos["data"])
             
-            else :
-                print("Destination reached!")
+            if (lst_pos["data"] == ""):
+                print("Looking for a position...")
+            else:
+                if (lst_pos["data"] != goal):
+                    route = get_route(lst_pos["data"], goal)
+                    print("Route: ", route)
+
+                    next_goal = route[1]
+                    if (reach(next_goal)):
+                        get_orientation(next_goal)
+                
+                else :
+                    print("Destination reached!")
 
     video_capture.release()
     cv2.destroyAllWindows()

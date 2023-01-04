@@ -12,8 +12,8 @@ MOVE = True if args.move == None else False # Should the robot physically move? 
 DEBUG = False if args.debug == None else True
 VERBOSE = False if args.verbose == None else True
 import utils.utils as utils
-from utils.utils import printv
-import numpy as np
+from utils.utils import print as print
+import numpy as np 
 import cv2
 import os
 import json
@@ -65,7 +65,7 @@ last_pos = {"data": "", "orientation": ""}
 
 # Look for the line, or stop (don't know yet)
 def lost():
-    printv("I'm lost!")
+    print("I'm lost!")
 
     if (hasGPIO):
         GPIO_R.ChangeDutyCycle(0)
@@ -100,29 +100,29 @@ def get_route(current, goal, abs = True):
     goal_route = locate(goal) # replace arg with goal
     # Compare the two strings for a common intersection (ie: E2)
 
-    #printv("Self: " + self_route)
-    #printv("Goal: " + goal_route)
+    #print("Self: " + self_route)
+    #print("Goal: " + goal_route)
 
     if (self_route == goal_route):
-        printv("Destination reached")
+        print("Destination reached")
         return []
     else: 
         self_route_lst = self_route.split(".")
         goal_route_lst = goal_route.split(".")
         self_route_lst.reverse()
 
-        #printv("self_route_lst: ", self_route_lst)
-        #printv("goal_route_lst: ", goal_route_lst)
+        #print("self_route_lst: ", self_route_lst)
+        #print("goal_route_lst: ", goal_route_lst)
         new_full_route_lst = [*self_route_lst, *goal_route_lst]
         
-        printv('new_full_route_lst: ', new_full_route_lst)
+        print('new_full_route_lst: ', new_full_route_lst)
         
         return new_full_route_lst
 
 # Move to next goal (next intersection, of final goal, whatever)
 # TODO: define here how to physically move the robot, and merge it with detect_line to adjust with the line
 def reach(goal):
-    printv("Moving to: ", goal)
+    print("Moving to: ", goal)
     
     if (goal == last_pos["data"]):
         return False
@@ -137,17 +137,17 @@ def adjust_line(dir):
             if (MOVE and hasGPIO):
                 GPIO_R.ChangeDutyCycle(RSPEED)
                 GPIO_L.ChangeDutyCycle(0)
-            #printv("CCW")
+            #print("CCW")
         elif (dir > 0):
             if (MOVE and hasGPIO):
                 GPIO_R.ChangeDutyCycle(0)
                 GPIO_L.ChangeDutyCycle(RSPEED)
-            #printv("CW")
+            #print("CW")
         else: 
             if (MOVE and hasGPIO):
                 GPIO_R.ChangeDutyCycle(RSPEED)
                 GPIO_L.ChangeDutyCycle(RSPEED)
-            #printv("fwd")
+            #print("fwd")
 
         time.sleep(0.08)
 
@@ -162,11 +162,11 @@ def get_orientation(goal):
 
     goal_orient = (current_pos.index(goal))*90
     current_orient = last_pos["orientation"]
-    #printv("Goal orientation: ", goal_orient)
-    #printv("Current orientation: ", current_orient)
+    #print("Goal orientation: ", goal_orient)
+    #print("Current orientation: ", current_orient)
 
     relative_orient = goal_orient - current_orient
-    printv("Degrees to turn: ", relative_orient)
+    print("Degrees to turn: ", relative_orient)
 
     # TODO: calibrate robot to know how long it has to move before reaching the physical intersection
     
@@ -208,7 +208,6 @@ def detect_line(ret, img):
                 cv2.drawContours(img, contours, -1, (255,255,255), 1)
         
             # Move the robot foward, and check if it's still aligned
-            # TODO: create moving function
             mx = (w/2)+10
             mn = (w/2)-10
             if cx >= mx:
@@ -233,12 +232,13 @@ def detect_line(ret, img):
 
 # Detect ArUco via video feed provided by the camera
 def detect_ArUco(ret, img):
-    c_x1 = (img.shape[0]//3)
-    c_x2 = (img.shape[0]//3)*2
-    c_y1 = (img.shape[1]//3)
-    c_y2 = (img.shape[1]//3)*2
+    # We crop the image to detect ArUco only in a specified area of the frame
+    cropped_x1 = (img.shape[0]//3)
+    cropped_x2 = (img.shape[0]//3)*2
+    cropped_y1 = (img.shape[1]//3)
+    cropped_y2 = (img.shape[1]//3)*2
 
-    cropped = img[c_x1: c_x2, c_y1: c_y2]
+    cropped = img[cropped_x1: cropped_x2, cropped_y1: cropped_y2]
     # grab the frame from the threaded video stream and resize it
     # to have a maximum width of 600 pixels
     
@@ -249,10 +249,10 @@ def detect_ArUco(ret, img):
         # convert each of the (x, y)-coordinate pairs to integers
 
         # Draw cropped corners
-        cv2.line(img, (c_y1, c_x1), (c_y1, c_x2), (255,0,0), 1) 
-        cv2.line(img, (c_y1, c_x2), (c_y2, c_x2), (255,0,0), 1) 
-        cv2.line(img, (c_y1, c_x1), (c_y2, c_x1), (255,0,0), 1) 
-        cv2.line(img, (c_y2, c_x1), (c_y2, c_x2), (255,0,0), 1) 
+        cv2.line(img, (cropped_y1, cropped_x1), (cropped_y1, cropped_x2), (255,0,0), 1) 
+        cv2.line(img, (cropped_y1, cropped_x2), (cropped_y2, cropped_x2), (255,0,0), 1) 
+        cv2.line(img, (cropped_y1, cropped_x1), (cropped_y2, cropped_x1), (255,0,0), 1) 
+        cv2.line(img, (cropped_y2, cropped_x1), (cropped_y2, cropped_x2), (255,0,0), 1) 
 
     # verify *at least* one ArUco marker was detected
     if len(corners) > 0:
@@ -261,6 +261,7 @@ def detect_ArUco(ret, img):
         ids = ids.flatten()
         id = ids[:1] # Filter one code
         
+        # Only take the first detected tag (for the needs of this project)
         if(id[0] != ""):
             last_pos["data"] = id[0]
 
@@ -290,10 +291,10 @@ def detect_ArUco(ret, img):
                 # convert each of the (x, y)-coordinate pairs to integers
 
                 # Draw cropped corners
-                cv2.line(img, (c_y1, c_x1), (c_y1, c_x2), (255,0,0), 1) 
-                cv2.line(img, (c_y1, c_x2), (c_y2, c_x2), (255,0,0), 1) 
-                cv2.line(img, (c_y1, c_x1), (c_y2, c_x1), (255,0,0), 1) 
-                cv2.line(img, (c_y2, c_x1), (c_y2, c_x2), (255,0,0), 1) 
+                cv2.line(img, (cropped_y1, cropped_x1), (cropped_y1, cropped_x2), (255,0,0), 1) 
+                cv2.line(img, (cropped_y1, cropped_x2), (cropped_y2, cropped_x2), (255,0,0), 1) 
+                cv2.line(img, (cropped_y1, cropped_x1), (cropped_y2, cropped_x1), (255,0,0), 1) 
+                cv2.line(img, (cropped_y2, cropped_x1), (cropped_y2, cropped_x2), (255,0,0), 1) 
 
                 # Draw corners
                 cv2.circle(cropped, top_right, 4, (255,0,0), 2) 
@@ -307,7 +308,6 @@ def detect_ArUco(ret, img):
                 cv2.line(cropped, bottom_right, bottom_left, (0, 255, 0), 2)
                 cv2.line(cropped, bottom_left, top_left, (0, 255, 0), 2)
 
-
                 # draw the ArUco marker ID on the frame
                 cv2.putText(cropped, str(marker_id),
                     (top_left[0], top_left[1] - 15),
@@ -319,12 +319,11 @@ def detect_ArUco(ret, img):
 
             angle = abs(((rad*180)/math.pi)-180)
             last_pos["orientation"] = angle
-            #printv("Angle: ", angle)
+            #print("Angle: ", angle)
 
     if (DEBUG):
         # show the output frame
         cv2.imshow("ArUco detection", img)
-        #cv2.imshow("ArUco cropped", cropped)
 
     if len(corners) > 0:
         return True
@@ -340,12 +339,12 @@ if __name__ == '__main__':
     video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, CAP_H)
     
     if not video_capture.isOpened():
-        printv("Can't find camera")
+        print("Can't find camera")
         exit()
 
     goal = input('Where do we go?:') or "29"
     
-    printv("Goal: ", goal)
+    print("Goal: ", goal)
     
     # Start the PWM signals with a duty cycle of 0%
     if (hasGPIO):
@@ -361,9 +360,9 @@ if __name__ == '__main__':
         if ((detect_line(ret, gray) == True) and (detect_ArUco(ret, img) == True)):
 
             if (last_pos["data"] == ""):
-                printv("Looking for a position...")
+                print("Looking for a position...")
             else:
-                printv("Current position: ", last_pos["data"])
+                print("Current position: ", last_pos["data"])
 
                 route = get_route(last_pos["data"], goal)
                 
